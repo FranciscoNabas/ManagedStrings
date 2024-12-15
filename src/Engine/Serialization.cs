@@ -97,7 +97,7 @@ internal sealed class ResultCollectionXmlSerializer(ResultCollection results, Pr
             writer.WriteEndElement();
 
             // The console doesn't like us messing with virtual terminal sequences too fast.
-            if (resultsSerializedBatchCount >= 100) {
+            if (resultsSerializedBatchCount >= 1000) {
                 m_progressHandler.IncrementProgress(resultsSerializedBatchCount);
                 resultsSerializedBatchCount = 0;
             }
