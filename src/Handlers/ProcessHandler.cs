@@ -361,9 +361,9 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
             processStream.GetRelativeOffsetInfo(decodeInformation.RelativeOffset, out offsetInfo);
         }
 
-        if (decodeInformation.Decoder.TryGetString(buffer, bufferLength, decodeInformation, out string? outputString, out currentBytesRead, cancellationToken)) {
+        if (decodeInformation.Decoder.TryGetString(buffer, bufferLength, decodeInformation, out string? outputString, out currentBytesRead, out int currentStringBytesRead, cancellationToken)) {
             if (!string.IsNullOrWhiteSpace(outputString) && IsMatch(outputString!))
-                Printer.Print(new ProcessResult(offsetInfo, decodeInformation.Encoding, currentBytesRead, outputString!));
+                Printer.Print(new ProcessResult(offsetInfo, decodeInformation.Encoding, currentStringBytesRead, outputString!));
         }
 
         relativeOffset += currentBytesRead;

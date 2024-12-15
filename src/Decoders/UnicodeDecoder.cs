@@ -26,10 +26,11 @@ internal sealed class UnicodeDecoder(UnicodeBlocks blocks) : Decoder
     /// <param name="decodeInformation">Information containing offsets, bytes read, and options.</param>
     /// <param name="value">The output string.</param>
     /// <param name="currentBytesRead">The number of bytes read.</param>
+    /// <param name="currentStringBytesRead">The number of valid bytes read.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>True if we parsed a string bigger than the minimum string length.</returns>
     internal override unsafe bool TryGetString(byte* buffer, int bufferLength, DecodeInformation decodeInformation,
-        [NotNullWhen(true)] out string? value, out int currentBytesRead, CancellationToken cancellationToken)
+        [NotNullWhen(true)] out string? value, out int currentBytesRead, out int currentStringBytesRead, CancellationToken cancellationToken)
     {
         value = null;
         UnicodeBlock? runBlock = null;
@@ -114,11 +115,12 @@ internal sealed class UnicodeDecoder(UnicodeBlocks blocks) : Decoder
         }
 
         currentBytesRead = offset - initialPosition;
+        currentStringBytesRead = currentBytesRead - 2;
 
         // Checking if we parsed a string bigger than the minimum string length.
         decodeInformation.Offset = offset;
         if (currentBytesRead / UnicodeEncoding.CharSize >= decodeInformation.MinStringLength) {
-            ReadOnlySpan<byte> slice = new(buffer + initialPosition, currentBytesRead - 2);
+            ReadOnlySpan<byte> slice = new(buffer + initialPosition, currentStringBytesRead);
             value = m_unicode.GetString([.. slice]);
 
             return true;

@@ -21,10 +21,11 @@ internal abstract class Decoder
     /// <param name="decodeInformation">Information containing offsets, bytes read, and options.</param>
     /// <param name="value">The output string.</param>
     /// <param name="currentBytesRead">The number of bytes read.</param>
+    /// <param name="currentStringBytesRead">The number of valid bytes read.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>True if we parsed a string bigger than the minimum string length.</returns>
     internal abstract unsafe bool TryGetString(byte* buffer, int bufferLength, DecodeInformation decodeInformation,
-        [NotNullWhen(true)] out string? value, out int currentBytesRead, CancellationToken cancellationToken);
+        [NotNullWhen(true)] out string? value, out int currentBytesRead, out int currentStringBytesRead, CancellationToken cancellationToken);
 }
 
 /// <summary>

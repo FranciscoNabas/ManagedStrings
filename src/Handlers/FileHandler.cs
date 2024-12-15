@@ -378,10 +378,10 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
     private unsafe void ProcessBufferOffset(string file, byte* buffer, int bufferLength, DecodeInformation decodeInformation,
         ref long relativeOffset, out int currentBytesRead, CancellationToken cancellationToken)
     {
-        long startOffset = decodeInformation.Offset;
-        if (decodeInformation.Decoder.TryGetString(buffer, bufferLength, decodeInformation, out string? outputString, out currentBytesRead, cancellationToken)) {
+        long startOffset = relativeOffset;
+        if (decodeInformation.Decoder.TryGetString(buffer, bufferLength, decodeInformation, out string? outputString, out currentBytesRead, out int currentStringBytesRead, cancellationToken)) {
             if (!string.IsNullOrWhiteSpace(outputString) && IsMatch(outputString))
-                Printer.Print(new FileResult(file, decodeInformation.Encoding, startOffset, relativeOffset + currentBytesRead, outputString));
+                Printer.Print(new FileResult(file, decodeInformation.Encoding, startOffset, relativeOffset + currentStringBytesRead, outputString));
         }
 
         relativeOffset += currentBytesRead;
