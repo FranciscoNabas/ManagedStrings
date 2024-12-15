@@ -31,8 +31,8 @@ if ($publishProcess.ExitCode -ne 0) {
 Copy-Item -Path .\LICENSE -Destination $outDirInfo.FullName
 
 if ($Compress) {
-    Compress-Archive -Path "$($outDirInfo.FullName)\*" -DestinationPath "$currentDir\out\Release\win-x64\ManagedStrings.zip" -Force
-    Remove-Item -Path $outDirInfo.FullName -Recurse -Force
+    Compress-Archive -Path "$($outDirInfo.FullName)\*" -DestinationPath "$currentDir\ManagedStrings.zip" -Force
+    Remove-Item -Path "$currentDir\out" -Recurse -Force
 }
 
 Pop-Location
