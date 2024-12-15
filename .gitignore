@@ -1,7 +1,14 @@
-# Visual Studio.
+.vs
 .vs/**
+bin
 bin/**
+obj
 obj/**
+out
 out/**
+Properties
 Properties/**
+Properties/PublishProfiles
+Properties/PublishProfiles/**
 *.csproj.user
+ManagedStrings.zip

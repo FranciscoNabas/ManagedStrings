@@ -4,6 +4,9 @@
 
 using System.IO;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System;
+using System.Linq;
 
 namespace ManagedStrings.Engine;
 
@@ -16,9 +19,14 @@ public sealed class ResultCollection
     
     internal int Count => m_list.Count;
 
+    internal Result this[int index] {
+        get => m_list[index];
+        set => m_list[index] = value;
+    }
+
     internal void Add(Result item)
         => m_list.Add(item);
-
+    
     public List<Result>.Enumerator GetEnumerator()
         => m_list.GetEnumerator();
 }

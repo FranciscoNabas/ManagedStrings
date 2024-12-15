@@ -12,6 +12,8 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using ManagedStrings.Engine;
 using ManagedStrings.Handlers;
+using ManagedStrings.Engine.Console;
+using System.Linq;
 
 namespace ManagedStrings.Serialization;
 
@@ -72,17 +74,28 @@ internal sealed class ResultCollectionXmlSerializer(ResultCollection results, Pr
         writer.WriteStartDocument();
         writer.WriteStartElement("ManagedStringsResult");
         writer.WriteAttributeString("xmlns", "xsi", null, "http://www.w3.org/2001/XMLSchema-instance");
-        foreach (Result result in m_results) {
-            writer.WriteStartElement("Result");
+        for (int i = 0; i < m_results.Count; i++) {
+            Result result = m_results[i];
+
+            // For some reason some times there are null values in the middle of the list.
+            // We're not adding null values, I checked that.
+            // Not sure if this is the expected behavior from List<T>.
+            // Also not sure if TrimExcess() helps, so adding a check.
+            if (result is null)
+                continue;
             
+            writer.WriteStartElement("Result");
+
             // File specific data.
-            if (result is FileResult fileResult) {
+            if (result is FileResult fileResult && fileResult is not null) {
                 writer.WriteAttributeString("type", "http://www.w3.org/2001/XMLSchema-instance", "FileResult");
                 writer.WriteElementString("Flie", fileResult.File);
+
+                goto GENERALPROPERTIES;
             }
 
             // Process specific data.
-            else if (result is ProcessResult processResult) {
+            else if (result is ProcessResult processResult && processResult is not null) {
                 writer.WriteAttributeString("type", "http://www.w3.org/2001/XMLSchema-instance", "ProcessResult");
                 writer.WriteElementString("ProcessId", processResult.ProcessId.ToString());
                 writer.WriteElementString("Name", processResult.Name);
@@ -90,6 +103,7 @@ internal sealed class ResultCollectionXmlSerializer(ResultCollection results, Pr
                 writer.WriteElementString("Details", processResult.Details);
             }
 
+        GENERALPROPERTIES:
             writer.WriteElementString("Encoding", result.Encoding.ToString());
             writer.WriteElementString("OffsetStart", result.OffsetStart.ToString());
             writer.WriteElementString("OffsetEnd", result.OffsetEnd.ToString());
@@ -415,6 +429,14 @@ public class ResultListConverter(ProgressHandler progressHandler) : JsonConverte
 
         writer.WriteStartArray();
         foreach (Result result in value) {
+
+            // For some reason some times there are null values in the middle of the list.
+            // We're not adding null values, I checked that.
+            // Not sure if this is the expected behavior from List<T>.
+            // Also not sure if TrimExcess() helps, so adding a check.
+            if (result is null)
+                continue;
+
             if (result is FileResult fileResult)
                 FileResultConverter.WriteNoFlush(writer, fileResult);
             else if (result is ProcessResult processResult)
