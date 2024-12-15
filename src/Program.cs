@@ -248,7 +248,7 @@ internal class Program
                   - PowerShell  => Considers the filter string as a PowerShell wildcard pattern.
         
             - Filter options: The accepted values depends on the type of filter being used:
-                  - Regex       => None, IgnoreCase, Multiline, ExplicitCapture, Compiled, Singleline, IgnorePatternWhitespace, RightToLeft, ECMAScript, and CultureInvariant.
+                  - Regex       => None, IgnoreCase, Multiline, ExplicitCapture, Compiled, Singleline, IgnorePatternWhitespace, RightToLeft, ECMAScript, CultureInvariant, and NonBacktracking.
                   - PowerShell  => None, Compiled, IgnoreCase, and CultureInvariant. Default is 'CultureInvariant|IgnoreCase'.
         
               When parsing big files using 'Compiled' can introduce performance benefits.
@@ -283,7 +283,7 @@ internal class Program
         
         Unicode Block Information.
             
-            Unicode blocks, also refered to as Unicode groups, or Unicode ranges are code point blocks that categorize characters.
+            Unicode blocks, also referred to as Unicode groups, or Unicode ranges are code point blocks that categorize characters.
             The default block is 'BasicLatin', that covers all ASCII characters (0x00..0x7F).
             You can combine multiple blocks with '|', E.g., 'LatinExtensions|Cyrillic', or 'All' to include all blocks.
             

@@ -182,6 +182,19 @@ internal abstract class ConsoleStreamStrategy(Encoding encoding) : Stream
     }
 
     /// <summary>
+    /// Writes a formatted string to the underlying stream.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="arguments">The arguments to format the string.</param>
+    internal void Write(string? value, params object[] arguments)
+    {
+        if (string.IsNullOrEmpty(value))
+            return;
+
+        WriteSpan(new ReadOnlySpan<byte>(StrategyEncoding.GetBytes(string.Format(value, arguments))));
+    }
+
+    /// <summary>
     /// Writes a string to the underlying stream.
     /// </summary>
     /// <param name="value">The value to write.</param>

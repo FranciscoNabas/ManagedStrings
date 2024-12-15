@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using ManagedStrings.Engine;
+using System.Linq;
 
 namespace ManagedStrings.Interop.Windows;
 
@@ -202,7 +203,8 @@ internal static partial class RtlDebugAPI
 /// W</remarks>
 internal class ProcessDebugInformation
 {
-    internal ProcessHeap[] Heaps { get; }
+    internal ProcessHeap[]? Heaps { get; }
+    internal long HeapSizes { get; }
 
     /// <summary>
     /// Constructs the debug information for a given process ID.
@@ -211,7 +213,7 @@ internal class ProcessDebugInformation
     /// <param name="flags">The flags to create the debug info.</param>
     /// <exception cref="NativeException">A call to a native function failed.</exception>
     /// <exception cref="OutOfMemoryException">The system couldn't allocate memory for the debug buffer.</exception>
-    internal ProcessDebugInformation(uint processId, QueryProcessFlags flags)
+    internal ProcessDebugInformation(uint processId, QueryProcessFlags flags, bool sizeOnly = false)
     {
         // Opening a handle to the process.
         SafeProcessHandle? hProcess = null;
@@ -282,10 +284,18 @@ internal class ProcessDebugInformation
 
         // Getting heap information.
         try {
-            if (WinVer.CurrentVersion >= WinVer.WINDOWS_11)
-                Heaps = GetHeapsV2(hProcess, ref debugInfo);
-            else
-                Heaps = GetHeapsV1(hProcess, ref debugInfo);
+            if (sizeOnly) {
+                if (WinVer.CurrentVersion >= WinVer.WINDOWS_11)
+                    HeapSizes = GetHeapSizesV2(hProcess, ref debugInfo);
+                else
+                    HeapSizes = GetHeapSizesV1(hProcess, ref debugInfo);
+            }
+            else {
+                if (WinVer.CurrentVersion >= WinVer.WINDOWS_11)
+                    Heaps = GetHeapsV2(hProcess, ref debugInfo);
+                else
+                    Heaps = GetHeapsV1(hProcess, ref debugInfo);
+            }
         }
         finally {
             _ = RtlDebugAPI.RtlDestroyQueryDebugBuffer(debugBuffer);
@@ -293,12 +303,12 @@ internal class ProcessDebugInformation
     }
 
     /// <summary>
-    /// Gets heap information for versions prior to Windows 11
+    /// Gets heap information for versions prior to Windows 11.
     /// </summary>
     /// <param name="hProcess">The handle to the process.</param>
     /// <param name="debugInfo">The debug information buffer.</param>
     /// <returns>An array of <see cref="ProcessHeap"/> containing the heap information.</returns>
-    private static unsafe ProcessHeap[] GetHeapsV1(SafeProcessHandle hProcess, ref RTL_DEBUG_INFORMATION debugInfo)
+    private static ProcessHeap[] GetHeapsV1(SafeProcessHandle hProcess, ref RTL_DEBUG_INFORMATION debugInfo)
     {
         uint heapId = 1;
         List<ProcessHeap> heaps = [];
@@ -316,12 +326,12 @@ internal class ProcessDebugInformation
     }
 
     /// <summary>
-    /// Gets heap information for versions >= Windows 11
+    /// Gets heap information for versions >= Windows 11.
     /// </summary>
     /// <param name="hProcess">The handle to the process.</param>
     /// <param name="debugInfo">The debug information buffer.</param>
     /// <returns>An array of <see cref="ProcessHeap"/> containing the heap information.</returns>
-    private static unsafe ProcessHeap[] GetHeapsV2(SafeProcessHandle hProcess, ref RTL_DEBUG_INFORMATION debugInfo)
+    private static ProcessHeap[] GetHeapsV2(SafeProcessHandle hProcess, ref RTL_DEBUG_INFORMATION debugInfo)
     {
         uint heapId = 1;
         List<ProcessHeap> heaps = [];
@@ -336,5 +346,39 @@ internal class ProcessDebugInformation
         }
 
         return [.. heaps];
+    }
+
+    /// <summary>
+    /// Get heap sizes for versions prior to Windows 11.
+    /// </summary>
+    /// <param name="hProcess">The handle to the process.</param>
+    /// <param name="debugInfo">The debug information buffer.</param>
+    /// <returns>The heap segment sizes.</returns>
+    private static long GetHeapSizesV1(SafeProcessHandle hProcess, ref RTL_DEBUG_INFORMATION debugInfo)
+    {
+        long output = 0;
+        RTL_PROCESS_HEAPS_V1 heapInfo = new(debugInfo.Heaps);
+        foreach (RTL_HEAP_INFORMATION_V1 heap in heapInfo.Heaps) {
+            output += Heap.GetHeapSegmentSize(hProcess, heap.BaseAddress).Sum();
+        }
+
+        return output;
+    }
+
+    /// <summary>
+    /// Get heap sizes for versions >= Windows 11.
+    /// </summary>
+    /// <param name="hProcess">The handle to the process.</param>
+    /// <param name="debugInfo">The debug information buffer.</param>
+    /// <returns>The heap segment sizes.</returns>
+    private static long GetHeapSizesV2(SafeProcessHandle hProcess, ref RTL_DEBUG_INFORMATION debugInfo)
+    {
+        long output = 0;
+        RTL_PROCESS_HEAPS_V2 heapInfo = new(debugInfo.Heaps);
+        foreach (RTL_HEAP_INFORMATION_V2 heap in heapInfo.Heaps) {
+            output += Heap.GetHeapSegmentSize(hProcess, heap.BaseAddress).Sum();
+        }
+
+        return output;
     }
 }

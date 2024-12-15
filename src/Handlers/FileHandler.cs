@@ -14,6 +14,7 @@ using ManagedStrings.Lab;
 using ManagedStrings.Engine;
 using ManagedStrings.Decoders;
 using ManagedStrings.Interop.Windows;
+using ManagedStrings.Engine.Console;
 
 namespace ManagedStrings.Handlers;
 
@@ -54,8 +55,20 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
         if (Options.Mode == Mode.Process)
             throw new ArgumentException($"Invalid mode '{Options.Mode}'.");
 
+#pragma warning disable CA2208
+
+        if (Options.FSInfo is null)
+            throw new ArgumentNullException(nameof(Options.FSInfo), "FSInfo can't be null.");
+
+#pragma warning restore CA2208
+
+        if (Printer.IsPrintToFile) {
+            WindowsConsole.WriteLine("Searching for strings...");
+            WindowsConsole.Flush();
+        }
+
         Stopwatch sw = Stopwatch.StartNew();
-        List<string> files;
+        List<FileMinimalInformation> files;
         if (Options.Mode == Mode.Directory || Options.Mode == Mode.FileSystemWildcard) {
 
             // Listing the files if we are a directory or contains wildcards.
@@ -63,8 +76,11 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
         }
         else {
             // Single file.
-            files = [Options.Path];
+            files = [new(Options.FSInfo.FullName, NativeIO.GetFileSize(Options.FSInfo.FullName))];
         }
+
+        // Creating the progress handler.
+        using ProgressHandler progressHandler = new(files.Sum(i => i.EndOfFile));
 
         if (Options.PrintHeader)
             Printer.PrintHeader();
@@ -74,8 +90,8 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
 
             // Handling synchronously.
             if (Options.Synchronous && !Options.RunMultipleItensAsync) {
-                foreach (string file in files)
-                    benchmarkData.SingleTimeList.Add(HandleFile(file, cancellationToken));
+                foreach (FileMinimalInformation file in files)
+                    benchmarkData.SingleTimeList.Add(HandleFile(file.FullName, progressHandler, cancellationToken));
 
                 sw.Stop();
                 benchmarkData.TotalTime = sw.Elapsed;
@@ -98,7 +114,7 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
                     // will wait for sometime before creating new threads(based on some heuristics).
                     // https://stackoverflow.com/questions/39994896/task-run-takes-much-time-to-start-the-task
                     Task<SingleFileTime>[] tasks = [.. files.Select(f => Task.Factory.StartNew(
-                        () => HandleFile(f, cancellationToken),
+                        () => HandleFile(f.FullName, progressHandler, cancellationToken),
                         cancellationToken,
                         TaskCreationOptions.PreferFairness | TaskCreationOptions.LongRunning,
                         TaskScheduler.Default
@@ -115,8 +131,8 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
                 }
 
                 // Running multiple files synchronously, but with possible async decoding.
-                foreach (string file in files)
-                    benchmarkData.SingleTimeList.Add(HandleFile(file, cancellationToken));
+                foreach (FileMinimalInformation file in files)
+                    benchmarkData.SingleTimeList.Add(HandleFile(file.FullName, progressHandler, cancellationToken));
 
                 sw.Stop();
                 benchmarkData.TotalTime = sw.Elapsed;
@@ -125,7 +141,7 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
             }
 
             // Single file.
-            benchmarkData.SingleTimeList.Add(HandleFile(files[0], cancellationToken));
+            benchmarkData.SingleTimeList.Add(HandleFile(files[0].FullName, progressHandler, cancellationToken));
 
             sw.Stop();
             benchmarkData.TotalTime = sw.Elapsed;
@@ -136,8 +152,8 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
         // No benchmark.
         sw.Stop();
         if (Options.Synchronous) {
-            foreach (string file in files)
-                HandleFile(file, cancellationToken);
+            foreach (FileMinimalInformation file in files)
+                HandleFile(file.FullName, progressHandler, cancellationToken);
 
             return default;
         }
@@ -145,7 +161,7 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
         if (files.Count > 1) {
             if (Options.RunMultipleItensAsync) {
                 Task.WaitAll([.. files.Select(f => Task.Factory.StartNew(
-                    () => HandleFile(f, cancellationToken),
+                    () => HandleFile(f.FullName, progressHandler, cancellationToken),
                     cancellationToken,
                     TaskCreationOptions.PreferFairness | TaskCreationOptions.LongRunning,
                     TaskScheduler.Default
@@ -154,13 +170,13 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
                 return default;
             }
 
-            foreach (string file in files)
-                HandleFile(file, cancellationToken);
+            foreach (FileMinimalInformation file in files)
+                HandleFile(file.FullName, progressHandler, cancellationToken);
 
             return default;
         }
 
-        HandleFile(files[0], cancellationToken);
+        HandleFile(files[0].FullName, progressHandler, cancellationToken);
 
         return default;
     }
@@ -169,10 +185,11 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
     /// Handles a single file.
     /// </summary>
     /// <param name="path">The file path.</param>
+    /// <param name="progressHandler">The progress handler.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> to be monitored.</param>
     /// <returns>The <see cref="SingleFileTime"/> containing the operation time information.</returns>
     /// <exception cref="EndOfStreamException">The start offset can't be greater or equal to the stream length.</exception>
-    private unsafe SingleFileTime HandleFile(string path, CancellationToken cancellationToken)
+    private unsafe SingleFileTime HandleFile(string path, ProgressHandler progressHandler, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -273,6 +290,9 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
                 else
                     Task.WaitAll(ProcessBufferAsync(file, bufferPtr, currentReadCount, workInfo, cancellationToken), cancellationToken);
             }
+
+            // Reporting the progress.
+            progressHandler.IncrementProgress(currentReadCount);
             
         } while (totalRead < bytesToScan);
 

@@ -547,7 +547,7 @@ internal sealed class CommandLineOptions
                 // Runs multiple files or processes in parallel.
                 // For more info see 'ProcessHandler.cs' and 'FileHandler.cs'.
                 // Requires extra argument: False.
-                case "--TESTRUNITENSASYNC":
+                case "--TESTRUNITEMSASYNC":
                     fsmState.Type = TokenType.TestRunMultipleItensAsync;
                     output.RunMultipleItensAsync = true;
                     currentToken = new(TokenType.TestRunMultipleItensAsync, argument, true);

@@ -28,6 +28,8 @@ if ($publishProcess.ExitCode -ne 0) {
     return
 }
 
+Copy-Item -Path .\LICENSE -Destination $outDirInfo.FullName
+
 if ($Compress) {
     Compress-Archive -Path "$($outDirInfo.FullName)\*" -DestinationPath "$currentDir\out\Release\win-x64\ManagedStrings.zip" -Force
     Remove-Item -Path $outDirInfo.FullName -Recurse -Force

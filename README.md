@@ -27,6 +27,7 @@ The ultimate binary string search utility!
     - [--TestConsoleBufferSize](#--testconsolebuffersize)
     - [--TestConsoleUseDriver](#--testconsoleusedriver)
     - [--TestRunItemsAsync](#--testrunitemsasync)
+  - [Building and publishing](#building-and-publishing)
   - [Code referencing](#code-referencing)
   - [A very special thanks](#a-very-special-thanks)
 
@@ -280,6 +281,12 @@ During tests there was no performance gains while running multiple items asynchr
 In some cases this might affect performance negatively because there's the extra overhead of managing the tasks.  
 This switch has no effect if used with **--sync**.
 
+## Building and publishing
+
+This project doesn't have a special build procedure, if you have Visual Studio with the .NET SDK 9.0 you should be able to build it.  
+For publishing since we are using options to trim the code you should use the [Publish.ps1][15] script.  
+The output of the script will be at `out\Release\win-x64\Artifacts` or at `out\Release\win-x64\ManagedStrings.zip` if you used the `-Compress` switch.
+
 ## Code referencing
 
 Like almost everything on computer science these days this program contains a lot of code that was 'inspired' by already existing code.  
@@ -313,3 +320,4 @@ A very special thanks to them!
 [12]: src/Filtering/WildcardPattern.cs
 [13]: https://systeminformer.com/
 [14]: https://github.com/winsiderss/systeminformer
+[15]: Tools/Publish.ps1

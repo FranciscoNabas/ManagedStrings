@@ -1306,11 +1306,45 @@ internal static partial class Heap
     }
 
     /// <summary>
+    /// Collects process heap sizes.
+    /// </summary>
+    /// <param name="hProcess">A handle to the process.</param>
+    /// <param name="managedHeap">The parent heap.</param>
+    /// <returns>A list of heap segment sizes.</returns>
+    internal static unsafe List<long> GetHeapSegmentSize(SafeProcessHandle hProcess, nint parentBase)
+    {
+        List<long> output = [];
+        int initialSize = Marshal.SizeOf<ANY_HEAP>();
+        using ScopedBuffer buffer = new(initialSize);
+        if (NativeProcess.TryReadProcessMemory(hProcess, parentBase, buffer, initialSize)) {
+            ANY_HEAP* rootHeap = (ANY_HEAP*)buffer;
+            if (WinVer.CurrentVersion >= WinVer.WINDOWS_8) {
+                if (rootHeap->Heap.Signature == Constants.HEAP_SIGNATURE) {
+                    ProcessHeapSegments(hProcess, ref rootHeap->Heap, null, output, null, true);
+                }
+                else if (rootHeap->Heap32.Signature == Constants.HEAP_SIGNATURE) {
+                    ProcessHeapSegments(hProcess, ref rootHeap->Heap32, null, output, null, true);
+                }
+            }
+            else {
+                if (rootHeap->HeapOld.Signature == Constants.HEAP_SIGNATURE) {
+                    ProcessHeapSegments(hProcess, ref rootHeap->HeapOld, null, output, null, true);
+                }
+                else if (rootHeap->HeapOld32.Signature == Constants.HEAP_SIGNATURE) {
+                    ProcessHeapSegments(hProcess, ref rootHeap->HeapOld32, null, output, null, true);
+                }
+            }
+        }
+
+        return output;
+    }
+
+    /// <summary>
     /// Collects process heap information.
     /// </summary>
     /// <param name="hProcess">A handle to the process.</param>
     /// <param name="managedHeap">The parent heap.</param>
-    /// <returns></returns>
+    /// <returns>A list of <see cref="ProcessHeap"/> segments.</returns>
     internal static unsafe List<ProcessHeap> GetHeapSegmentInformation(SafeProcessHandle hProcess, ProcessHeap managedHeap)
     {
         List<ProcessHeap> output = [];
@@ -1321,11 +1355,11 @@ internal static partial class Heap
             if (WinVer.CurrentVersion >= WinVer.WINDOWS_8) {
                 if (rootHeap.Heap.Signature == Constants.HEAP_SIGNATURE) {
                     managedHeap.RegionType = rootHeap.Heap.FrontEndHeap != nint.Zero ? MemoryRegionType.NtLfhHeap : MemoryRegionType.NtHeap;
-                    ProcessHeapSegments(hProcess, ref rootHeap.Heap, output, managedHeap);
+                    ProcessHeapSegments(hProcess, ref rootHeap.Heap, output, null, managedHeap);
                 }
                 else if (rootHeap.Heap32.Signature == Constants.HEAP_SIGNATURE) {
                     managedHeap.RegionType = rootHeap.Heap.FrontEndHeap != nint.Zero ? MemoryRegionType.NtLfhHeap : MemoryRegionType.NtHeap;
-                    ProcessHeapSegments(hProcess, ref rootHeap.Heap32, output, managedHeap);
+                    ProcessHeapSegments(hProcess, ref rootHeap.Heap32, output, null, managedHeap);
                 }
                 else if (WinVer.CurrentVersion >= WinVer.WINDOWS_8_1) {
                     if (rootHeap.SegmentHeap.Signature == Constants.SEGMENT_HEAP_SIGNATURE) {
@@ -1341,11 +1375,11 @@ internal static partial class Heap
             else {
                 if (rootHeap.HeapOld.Signature == Constants.HEAP_SIGNATURE) {
                     managedHeap.RegionType = rootHeap.Heap.FrontEndHeap != nint.Zero ? MemoryRegionType.NtLfhHeap : MemoryRegionType.NtHeap;
-                    ProcessHeapSegments(hProcess, ref rootHeap.HeapOld, output, managedHeap);
+                    ProcessHeapSegments(hProcess, ref rootHeap.HeapOld, output, null, managedHeap);
                 }
                 else if (rootHeap.HeapOld32.Signature == Constants.HEAP_SIGNATURE) {
                     managedHeap.RegionType = rootHeap.Heap.FrontEndHeap != nint.Zero ? MemoryRegionType.NtLfhHeap : MemoryRegionType.NtHeap;
-                    ProcessHeapSegments(hProcess, ref rootHeap.HeapOld32, output, managedHeap);
+                    ProcessHeapSegments(hProcess, ref rootHeap.HeapOld32, output, null, managedHeap);
                 }
             }
         }
@@ -1360,7 +1394,7 @@ internal static partial class Heap
     /// <param name="heap">The heap header.</param>
     /// <param name="segmentList">The segment list.</param>
     /// <param name="parentHeap">The parent heap</param>
-    private static unsafe void ProcessHeapSegments(SafeProcessHandle hProcess, ref HEAP heap, List<ProcessHeap> segmentList, ProcessHeap parentHeap)
+    private static unsafe void ProcessHeapSegments(SafeProcessHandle hProcess, ref HEAP heap, List<ProcessHeap>? segmentList, List<long>? sizeList, ProcessHeap? parentHeap, bool sizeOnly = false)
     {
         int heapSize = Marshal.SizeOf<HEAP>();
         int listEntrySize = Marshal.SizeOf<LIST_ENTRY>();
@@ -1375,7 +1409,12 @@ internal static partial class Heap
 
             if (NativeProcess.TryReadProcessMemory(hProcess, currentSegmentOffset, heapBuffer, heapSize)) {
                 HEAP* currentHeap = (HEAP*)heapBuffer;
-                segmentList.Add(new(parentHeap, currentSegmentOffset, (currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize) {
+                if (sizeOnly && sizeList is not null) {
+                    sizeList.Add((currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize);
+                    goto ENDOFLOOP;
+                }
+
+                segmentList!.Add(new(parentHeap!, currentSegmentOffset, (currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize) {
                     RegionType = currentHeap->FrontEndHeap != nint.Zero ? MemoryRegionType.NtLfhSegment : MemoryRegionType.NtHeapSegment
                 });
             }
@@ -1394,7 +1433,7 @@ internal static partial class Heap
     /// <param name="heap">The heap header.</param>
     /// <param name="segmentList">The segment list.</param>
     /// <param name="parentHeap">The parent heap</param>
-    private static unsafe void ProcessHeapSegments(SafeProcessHandle hProcess, ref HEAP32 heap, List<ProcessHeap> segmentList, ProcessHeap parentHeap)
+    private static unsafe void ProcessHeapSegments(SafeProcessHandle hProcess, ref HEAP32 heap, List<ProcessHeap>? segmentList, List<long>? sizeList, ProcessHeap? parentHeap, bool sizeOnly = false)
     {
         int heapSize = Marshal.SizeOf<HEAP32>();
         int listEntrySize = Marshal.SizeOf<LIST_ENTRY32>();
@@ -1409,7 +1448,12 @@ internal static partial class Heap
 
             if (NativeProcess.TryReadProcessMemory(hProcess, currentSegmentOffset, heapBuffer, heapSize)) {
                 HEAP32* currentHeap = (HEAP32*)heapBuffer;
-                segmentList.Add(new(parentHeap, currentSegmentOffset, (currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize) {
+                if (sizeOnly && sizeList is not null) {
+                    sizeList.Add((currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize);
+                    goto ENDOFLOOP;
+                }
+
+                segmentList!.Add(new(parentHeap!, currentSegmentOffset, (currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize) {
                     RegionType = currentHeap->FrontEndHeap != 0 ? MemoryRegionType.NtLfhSegment : MemoryRegionType.NtHeapSegment
                 });
             }
@@ -1428,7 +1472,7 @@ internal static partial class Heap
     /// <param name="heap">The heap header.</param>
     /// <param name="segmentList">The segment list.</param>
     /// <param name="parentHeap">The parent heap</param>
-    private static unsafe void ProcessHeapSegments(SafeProcessHandle hProcess, ref HEAP_OLD heap, List<ProcessHeap> segmentList, ProcessHeap parentHeap)
+    private static unsafe void ProcessHeapSegments(SafeProcessHandle hProcess, ref HEAP_OLD heap, List<ProcessHeap>? segmentList, List<long>? sizeList, ProcessHeap? parentHeap, bool sizeOnly = false)
     {
         int heapSize = Marshal.SizeOf<HEAP_OLD>();
         int listEntrySize = Marshal.SizeOf<LIST_ENTRY>();
@@ -1443,7 +1487,12 @@ internal static partial class Heap
 
             if (NativeProcess.TryReadProcessMemory(hProcess, currentSegmentOffset, heapBuffer, heapSize)) {
                 HEAP_OLD* currentHeap = (HEAP_OLD*)heapBuffer;
-                segmentList.Add(new(parentHeap, currentSegmentOffset, (currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize) {
+                if (sizeOnly && sizeList is not null) {
+                    sizeList.Add((currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize);
+                    goto ENDOFLOOP;
+                }
+
+                segmentList!.Add(new(parentHeap!, currentSegmentOffset, (currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize) {
                     RegionType = currentHeap->FrontEndHeap != nint.Zero ? MemoryRegionType.NtLfhSegment : MemoryRegionType.NtHeapSegment
                 });
             }
@@ -1462,7 +1511,7 @@ internal static partial class Heap
     /// <param name="heap">The heap header.</param>
     /// <param name="segmentList">The segment list.</param>
     /// <param name="parentHeap">The parent heap</param>
-    private static unsafe void ProcessHeapSegments(SafeProcessHandle hProcess, ref HEAP_OLD32 heap, List<ProcessHeap> segmentList, ProcessHeap parentHeap)
+    private static unsafe void ProcessHeapSegments(SafeProcessHandle hProcess, ref HEAP_OLD32 heap, List<ProcessHeap>? segmentList, List<long>? sizeList, ProcessHeap? parentHeap, bool sizeOnly = false)
     {
         int heapSize = Marshal.SizeOf<HEAP_OLD32>();
         int listEntrySize = Marshal.SizeOf<LIST_ENTRY32>();
@@ -1477,7 +1526,12 @@ internal static partial class Heap
 
             if (NativeProcess.TryReadProcessMemory(hProcess, currentSegmentOffset, heapBuffer, heapSize)) {
                 HEAP_OLD32* currentHeap = (HEAP_OLD32*)heapBuffer;
-                segmentList.Add(new(parentHeap, currentSegmentOffset, (currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize) {
+                if (sizeOnly && sizeList is not null) {
+                    sizeList.Add((currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize);
+                    goto ENDOFLOOP;
+                }
+
+                segmentList!.Add(new(parentHeap!, currentSegmentOffset, (currentHeap->NumberOfPages - currentHeap->NumberOfUnCommittedPages) * Common.SystemInfo.dwPageSize) {
                     RegionType = currentHeap->FrontEndHeap != 0 ? MemoryRegionType.NtLfhSegment : MemoryRegionType.NtHeapSegment
                 });
             }

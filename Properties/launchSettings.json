@@ -2,7 +2,7 @@
   "profiles": {
     "ManagedStrings": {
       "commandName": "Project",
-      "commandLineArgs": "-pid 666 -f Tits! -ft Regex -fo Compiled -o C:\\Tits.xml -ot xml -mt \"heap|stack\" -pp \"processid|details\"",
+      "commandLineArgs": "-pid 28464 --testdobenchmark -o C:\\testStrings.json -ot json --force -mt all",
       "nativeDebugging": true
     }
   }

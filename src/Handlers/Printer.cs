@@ -71,11 +71,13 @@ internal sealed class Printer : IDisposable
     private readonly Dictionary<PrintDataType, byte> m_templateMap;
 
     private TextWriter? m_writer;
-    private FileStream? m_outputFileStream;
+    private Stream? m_outputStream;
+    private bool m_disposeOfStream;
     private ResultCollection? m_resultCollection;
 
     // IsUnicode is everywhere.
     internal bool IsUnicode { get; }
+    internal bool IsPrintToFile => m_isPrintToFile && !m_isOutFileConsole;
 
     /// <summary>
     /// Constructs a <see cref="Printer"/> from the <see cref="CommandLineOptions"/>.
@@ -214,7 +216,7 @@ internal sealed class Printer : IDisposable
         m_resultTemplate = finalEncoding.GetString(Encoding.Convert(defaultEncoding, finalEncoding, resultBytes));
 
         // Setting the console buffer if any.
-        if (options.ConsoleBufferSize > 0)
+        if (options.ConsoleBufferSize > 0 && !IsPrintToFile)
             WindowsConsole.BufferSize = (int)options.ConsoleBufferSize;
 
         // Setting the console to use the 'ConDrv' API if requested.
@@ -282,8 +284,13 @@ internal sealed class Printer : IDisposable
             return;
 
         // 'InitStream()' will take care of creating the writer to the correct stream.
-        if (m_writer is null)
+        if (m_writer is null || m_outputStream is null)
             InitStream();
+
+        if (IsPrintToFile) {
+            WindowsConsole.WriteLine("Serializing data to the output file...");
+            WindowsConsole.Flush();
+        }
 
         switch (m_options.OutputFileType) {
             
@@ -332,7 +339,7 @@ internal sealed class Printer : IDisposable
                 break;
 
             case OutputFileType.Json:
-                m_writer.Write(JsonExtensions.SerializeResultCollection(m_resultCollection));
+                JsonExtensions.SerializeResultCollection(m_resultCollection, m_outputStream);
                 break;
 
             default:
@@ -395,6 +402,7 @@ internal sealed class Printer : IDisposable
     /// </summary>
     /// <exception cref="ArgumentException">Output file can't be null</exception>
     [MemberNotNull(nameof(m_writer))]
+    [MemberNotNull(nameof(m_outputStream))]
     private void InitStream()
     {
         if (m_options.OutFile is null)
@@ -402,13 +410,16 @@ internal sealed class Printer : IDisposable
 
         // If we're printing formatted data to the console we wrap the console stream with a sync. text writer.
         if (m_isOutFileConsole) {
-            m_writer ??= TextWriter.Synchronized(new StreamWriter(WindowsConsole.Out, WindowsConsole.OutputEncoding, WindowsConsole.BufferSize));
+            m_outputStream = WindowsConsole.Out;
+            m_writer = TextWriter.Synchronized(new StreamWriter(WindowsConsole.Out, WindowsConsole.OutputEncoding, WindowsConsole.BufferSize, leaveOpen: true));
+            m_disposeOfStream = false;
         }
 
         // If we're printing to a file we open the file and create a sync. text writer.
         else {
-            m_outputFileStream ??= new FileStream(m_options.OutFile, FileMode.Create, FileAccess.ReadWrite, FileShare.Read, 81920, FileOptions.SequentialScan);
-            m_writer ??= TextWriter.Synchronized(new StreamWriter(m_outputFileStream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true), 81920));
+            m_outputStream = new FileStream(m_options.OutFile, FileMode.Create, FileAccess.ReadWrite, FileShare.Read, 1048576, FileOptions.SequentialScan);
+            m_writer = TextWriter.Synchronized(new StreamWriter(m_outputStream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true), 1048576, leaveOpen: true));
+            m_disposeOfStream = true;
         }
     }
 
@@ -420,15 +431,25 @@ internal sealed class Printer : IDisposable
     private void Dispose(bool disposing)
     {
         if (disposing) {
+            
+            // Flushing the console and restoring the original encoding.
             WindowsConsole.Flush();
             WindowsConsole.OutputEncoding = m_originalConsoleEncoding;
 
+            // Flush to file if needed.
             if (m_isPrintToFile)
                 FlushToFile();
 
+            // Disposing of the writer.
             if (m_writer is not null) {
                 m_writer.Dispose();
                 m_writer = null;
+            }
+
+            // Disposing of the stream if needed.
+            if (m_outputStream is not null && m_disposeOfStream) {
+                m_outputStream.Dispose();
+                m_outputStream = null;
             }
         }
     }

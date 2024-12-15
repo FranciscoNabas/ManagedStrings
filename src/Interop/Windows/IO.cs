@@ -66,6 +66,7 @@ internal enum NativeFileShare : uint
 /// </remarks>
 internal enum NativeFileOptions : uint
 {
+    NONE                         = 0x00000000,
     DIRECTORY_FILE               = 0x00000001,
     WRITE_THROUGH                = 0x00000002,
     SEQUENTIAL_ONLY              = 0x00000004,
@@ -191,6 +192,20 @@ internal sealed class FSObjectInfo
 }
 
 /// <summary>
+/// Contains minimal information about a file.
+/// </summary>
+/// <param name="fullName">The file full path.</param>
+/// <param name="eof">The file last byte offset.</param>
+/// <remarks>
+/// This object should be kept as small as possible.
+/// </remarks>
+internal sealed class FileMinimalInformation(string fullName, long eof)
+{
+    internal string FullName { get; } = fullName;
+    internal long EndOfFile { get; } = eof;
+}
+
+/// <summary>
 /// Native IO functions.
 /// </summary>
 internal static partial class NativeIO
@@ -259,6 +274,14 @@ internal static partial class NativeIO
         nint lpBuffer
     );
 
+    /// <seealso href="https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-getfilesizeex">GetFileSizeEx function (fileapi.h)</seealso>
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetFileSizeEx(
+        nint hFile,
+        out LARGE_INTEGER lpFileSize
+    );
+
     /// <seealso href="https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-getfiletype">GetFileType function (fileapi.h)</seealso>
     [LibraryImport("kernel32.dll", SetLastError = true)]
     internal static partial FileType GetFileType(nint hFile);
@@ -321,17 +344,32 @@ internal static partial class NativeIO
     }
 
     /// <summary>
+    /// Gets a file size.
+    /// </summary>
+    /// <param name="filePath">The file path.</param>
+    /// <returns></returns>
+    /// <exception cref="NativeException">The call to 'GetFileSizeEx' failed.</exception>
+    internal static long GetFileSize(string filePath)
+    {
+        using SafeFileHandle hFile = OpenFile(filePath, (int)NativeFileAccess.READ_ATTRIBUTES, NativeFileShare.READ, NativeFileOptions.NONE);
+        if (!GetFileSizeEx(hFile.DangerousGetHandle(), out LARGE_INTEGER fileSize))
+            throw new NativeException(Marshal.GetLastWin32Error());
+
+        return fileSize.QuadPart;
+    }
+
+    /// <summary>
     /// List files within a directory.
     /// </summary>
     /// <param name="info">The <see cref="FSObjectInfo"/> with directory information.</param>
     /// <param name="recurse">True to list files recursively.</param>
     /// <param name="token">The <see cref="CancellationToken"/> to be monitored.</param>
     /// <returns>A <see cref="List{string}"/> with the file paths.</returns>
-    internal static List<string> GetDirectoryFiles(FSObjectInfo info, bool recurse, CancellationToken token)
+    internal static List<FileMinimalInformation> GetDirectoryFiles(FSObjectInfo info, bool recurse, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
 
-        List<string> output = [];
+        List<FileMinimalInformation> output = [];
         GetDirectoryFilesInternal(info, ref output, recurse, token);
 
         return output;
@@ -373,12 +411,12 @@ internal static partial class NativeIO
     /// List files within a directory.
     /// </summary>
     /// <param name="info">The <see cref="FSObjectInfo"/> with directory information.</param>
-    /// <param name="fileList">The file path list.</param>
+    /// <param name="fileList">The file information list.</param>
     /// <param name="recurse">True to list files recursively.</param>
     /// <param name="token">The <see cref="CancellationToken"/> to be monitored.</param>
     /// <exception cref="FileNotFoundException">The root directory doesn't exist.</exception>
     /// <exception cref="NativeException">A call to a native function returned a non-success status.</exception>
-    private static unsafe void GetDirectoryFilesInternal(FSObjectInfo info, ref List<string> fileList, bool recurse, CancellationToken token)
+    private static unsafe void GetDirectoryFilesInternal(FSObjectInfo info, ref List<FileMinimalInformation> fileList, bool recurse, CancellationToken token)
     {
         // This method is either called for a directory path, or if the path contains
         // wildcard characters. If it's a directory we set the path to the full name,
@@ -441,7 +479,7 @@ internal static partial class NativeIO
                 }
                 else
                     // It's a file.
-                    fileList.Add(rootTerminatedPath + name);
+                    fileList.Add(new(rootTerminatedPath + name, currentInformation->EndOfFile));
 
                 // Advancing the buffer offset.
                 offset = nint.Add(offset, currentInformation->NextEntryOffset);

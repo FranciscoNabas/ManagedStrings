@@ -122,3 +122,14 @@ internal sealed class ProcessMemoryRegion(uint processId, string imagePath, ref 
     internal string? MappedFilePath { get; set; }
     internal ProcessHeap? HeapInformation { get; set; }
 }
+
+internal sealed class ProcessMemoryRegionSlim(ref MEMORY_BASIC_INFORMATION mbi)
+{
+    internal ProcessMemoryRegionSlim? AllocationBaseItem { get; set; }
+
+    internal MemoryRegionType Type { get; set; }
+    internal long Size { get; } = mbi.RegionSize;
+    internal nint BaseAddress { get; } = mbi.BaseAddress;
+    internal MemoryType BasicType { get; } = mbi.Type;
+    internal bool IsValid { get; set; }
+}

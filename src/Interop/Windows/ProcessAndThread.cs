@@ -585,6 +585,64 @@ internal static partial class NativeProcess
     }
 
     /// <summary>
+    /// Gets process virtual memory size.
+    /// </summary>
+    /// <param name="processId">The process ID.</param>
+    /// <param name="hProcess">The handle to the process.</param>
+    /// <param name="regionsToMap">The type of regions to map.</param>
+    /// <returns>The size of the virtual memory regions chosen.</returns>
+    internal static unsafe long GetProcessMemorySize(uint processId, ReadMemoryFlags regionsToMap)
+    {
+        List<ProcessMemoryRegionSlim> regionListSlim = [];
+
+        using SafeProcessHandle hProcess = OpenProcess(processId, ProcessAccess.QUERY_INFORMATION | ProcessAccess.VM_READ, false);
+
+        // Listing heaps with the debug functions.
+        ProcessDebugInformation? debugInfo = null;
+        if (regionsToMap.HasMemoryFlag(ReadMemoryFlags.Heap))
+            debugInfo = new(processId, QueryProcessFlags.HEAP_SUMMARY | QueryProcessFlags.HEAP_ENTRIES | QueryProcessFlags.NONINVASIVE, true);
+
+        // Listing virtual addresses.
+        int basicInfoSize = Marshal.SizeOf<MEMORY_BASIC_INFORMATION>();
+        int workingSetInfoSize = Marshal.SizeOf<MEMORY_WORKING_SET_EX_INFORMATION>();
+
+        nint address = 0;
+        using ScopedBuffer buffer = new(basicInfoSize);
+        while (NtQueryVirtualMemory(hProcess, address, MEMORY_INFORMATION_CLASS.BasicInformation, buffer, basicInfoSize, out _) == ErrorCodes.STATUS_SUCCESS) {
+            MEMORY_BASIC_INFORMATION mbi = Marshal.PtrToStructure<MEMORY_BASIC_INFORMATION>(buffer);
+
+            // We only query commited memory because reading from other types doesn't make sense.
+            if (mbi.State == MemoryState.COMMIT && (mbi.Protect & (PageProtection.NOACCESS | PageProtection.GUARD)) == 0) {
+                ProcessMemoryRegionSlim currentRegion = new(ref mbi);
+
+                // Setting the allocation base.
+                ProcessMemoryRegionSlim? allocationBaseItem = null;
+                if (mbi.AllocationBase == mbi.BaseAddress)
+                    allocationBaseItem = currentRegion;
+                else
+                    allocationBaseItem = regionListSlim.FirstOrDefault(i => i.BaseAddress == mbi.AllocationBase);
+
+                if (allocationBaseItem is not null && mbi.AllocationBase == allocationBaseItem.BaseAddress)
+                    currentRegion.AllocationBaseItem = allocationBaseItem;
+
+                // Querying working set information.
+                MEMORY_WORKING_SET_EX_INFORMATION mwsi = new() { VirtualAddress = address };
+                if (NtQueryVirtualMemory(hProcess, nint.Zero, MEMORY_INFORMATION_CLASS.WorkingSetExInformation, new nint(&mwsi), workingSetInfoSize, out _) == ErrorCodes.STATUS_SUCCESS)
+                    currentRegion.IsValid = mwsi.VirtualAttributes.ValidData.IsValid && !mwsi.VirtualAttributes.ValidData.Bad;
+
+                regionListSlim.Add(currentRegion);
+            }
+
+            address = checked((nint)(address + mbi.RegionSize));
+        }
+
+        // Categorizing the memory regions.
+        UpdateMemoryRegionTypesSlim(processId, hProcess, regionListSlim);
+
+        return regionListSlim.Where(r => r.Type.HasMemoryFlag(regionsToMap)).Sum(r => r.Size);
+    }
+
+    /// <summary>
     /// Gets process virtual memory information.
     /// </summary>
     /// <param name="processId">The process ID.</param>
@@ -618,7 +676,7 @@ internal static partial class NativeProcess
                 if (debugInfo is not null) {
                     
                     // Checking if it's a heap.
-                    ProcessHeap? possibleHeap = debugInfo.Heaps.FirstOrDefault(h => (long)mbi.BaseAddress >= (long)h.Base && (long)mbi.BaseAddress < (long)h.End);
+                    ProcessHeap? possibleHeap = debugInfo.Heaps!.FirstOrDefault(h => (long)mbi.BaseAddress >= (long)h.Base && (long)mbi.BaseAddress < (long)h.End);
                     if (possibleHeap is not null) {
                         currentRegion = new(processId, imagePath, ref mbi) {
                             Type = possibleHeap.RegionType,
@@ -658,6 +716,99 @@ internal static partial class NativeProcess
         UpdateMemoryRegionTypes(processId, hProcess, output);
 
         return [.. output.Where(r => r.Type.HasMemoryFlag(regionsToMap)).OrderBy(r => r.BaseLong)];
+    }
+
+    /// <summary>
+    /// Categorizes a list of <see cref="ProcessMemoryRegionSlim"/>.
+    /// </summary>
+    /// <param name="processId">The process ID.</param>
+    /// <param name="hProcess">The handle to the process.</param>
+    /// <param name="regionList">The process memory region list.</param>
+    /// <remarks>
+    /// This method was almost entirelly based on the SystemInformer verison.
+    /// </remarks>
+    private static unsafe void UpdateMemoryRegionTypesSlim(uint processId, SafeProcessHandle hProcess, List<ProcessMemoryRegionSlim> regionList)
+    {
+        // 1 - Checks if the process exists and collect information about it.
+        using ScopedBuffer procInfoBuffer = new(0x4000);
+        if (!TryGetProcessInformation(processId, procInfoBuffer, out int procInfoOffset))
+            return;
+
+        // 4 - PEB, Heap.
+        if (TryGetProcessPeb(hProcess, out PEB peb, out nint pebBase)) {
+            ProcessPebInformationSlim(hProcess, regionList, ref peb, pebBase);
+        }
+
+        if (TryGetProcessPeb32(hProcess, out PEB32 peb32, out nint peb32Base)) {
+            ProcessPebInformationSlim32(hProcess, regionList, ref peb32, peb32Base);
+        }
+
+        // 5 - TEB, Stack.
+        SYSTEM_PROCESS_INFORMATION* processInfo = (SYSTEM_PROCESS_INFORMATION*)nint.Add(procInfoBuffer, procInfoOffset);
+        foreach (var thread in processInfo->Threads) {
+            if (thread.TebBase != nint.Zero) {
+
+                // 5.1 - Set the region type.
+                ProcessMemoryRegionSlim? tebRegion = SetMemoryRegionType(regionList, thread.TebBase, WinVer.CurrentVersion < WinVer.WINDOWS_10_RS2, MemoryRegionType.Teb);
+
+                // 5.2 - Reading the NT_TIB.
+                int tibSize = Marshal.SizeOf<NT_TIB>();
+                using ScopedBuffer tibBuffer = new(tibSize);
+                if (TryReadProcessMemory(hProcess, thread.TebBase, tibBuffer, tibSize)) {
+                    NT_TIB* tib = (NT_TIB*)tibBuffer;
+                    if ((ulong)tib->StackLimit < (ulong)tib->StackBase) {
+                        tebRegion = SetMemoryRegionType(regionList, tib->StackLimit, true, MemoryRegionType.Stack);
+                    }
+                }
+            }
+        }
+
+        // 6 - Mapped file, heap segment, unusable.
+        foreach (var item in regionList) {
+            if (item.Type != MemoryRegionType.Unknown)
+                continue;
+
+            string mappedFilePath = GetMappedFileName(hProcess, item.BaseAddress);
+            if ((item.BasicType & (MemoryType.MAPPED | MemoryType.IMAGE)) > 0 && item.AllocationBaseItem == item) {
+                if ((item.BasicType & MemoryType.IMAGE) > 0)
+                    item.Type = MemoryRegionType.Image;
+                else {
+                    if (string.IsNullOrEmpty(mappedFilePath))
+                        item.Type = MemoryRegionType.Shareable;
+                    else
+                        item.Type = MemoryRegionType.MappedFile;
+                }
+
+                continue;
+            }
+
+            // Catch all.
+            if (item.Type == MemoryRegionType.Unknown) {
+                if (item.AllocationBaseItem is not null) {
+                    if (item.AllocationBaseItem.Type == MemoryRegionType.Unknown) {
+                        item.Type = item.BasicType switch {
+                            MemoryType.PRIVATE => MemoryRegionType.PrivateData,
+                            MemoryType.IMAGE => MemoryRegionType.Image,
+                            MemoryType.MAPPED => string.IsNullOrEmpty(mappedFilePath) ? MemoryRegionType.Shareable : MemoryRegionType.MappedFile,
+                            _ => MemoryRegionType.Unknown
+                        };
+
+                        item.AllocationBaseItem.Type = item.Type;
+                    }
+                    else {
+                        item.Type = item.AllocationBaseItem.Type;
+                    }
+                }
+                else {
+                    item.Type = item.BasicType switch {
+                        MemoryType.PRIVATE => MemoryRegionType.PrivateData,
+                        MemoryType.IMAGE => MemoryRegionType.Image,
+                        MemoryType.MAPPED => string.IsNullOrEmpty(mappedFilePath) ? MemoryRegionType.Shareable : MemoryRegionType.MappedFile,
+                        _ => MemoryRegionType.Unknown
+                    };
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -978,6 +1129,30 @@ internal static partial class NativeProcess
     }
 
     /// <summary>
+    /// Set the <see cref="MemoryRegionType"/> for a <see cref="ProcessMemoryRegionSlim"/>.
+    /// </summary>
+    /// <param name="regionList">The <see cref="ProcessMemoryRegionSlim"/> list.</param>
+    /// <param name="address">The region base address.</param>
+    /// <param name="goToAllocationBase">True to go to the allocation base.</param>
+    /// <param name="type">The <see cref="MemoryRegionType"/>.</param>
+    /// <returns>The <see cref="ProcessMemoryRegionSlim"/>.</returns>
+    private static ProcessMemoryRegionSlim? SetMemoryRegionType(List<ProcessMemoryRegionSlim> regionList, nint address, bool goToAllocationBase, MemoryRegionType type)
+    {
+        ProcessMemoryRegionSlim? region = regionList.FirstOrDefault(r => r.BaseAddress == address);
+        if (region is null)
+            return null;
+
+        if (goToAllocationBase && region.AllocationBaseItem is not null)
+            region = region.AllocationBaseItem;
+
+        if (region.Type != MemoryRegionType.Unknown)
+            return null;
+
+        region.Type = type;
+        return region;
+    }
+
+    /// <summary>
     /// Gets the memory mapped file name.
     /// </summary>
     /// <param name="hProcess">The handle to the process.</param>
@@ -1092,6 +1267,54 @@ internal static partial class NativeProcess
                 if (peb32.WerRegistrationData != 0) SetMemoryRegionType(regionList, (nint)peb32.WerRegistrationData, true, MemoryRegionType.WerRegistrationData);
                 if (peb32.SharedData != 0) SetMemoryRegionType(regionList, (nint)peb32.SharedData, true, MemoryRegionType.SiloSharedData);
                 if (peb32.TelemetryCoverageHeader != 0) SetMemoryRegionType(regionList, (nint)peb32.TelemetryCoverageHeader, true, MemoryRegionType.TelemetryCoverage);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes the PEB for a process.
+    /// </summary>
+    /// <param name="hProcess">The handle to the process.</param>
+    /// <param name="regionList">The <see cref="ProcessMemoryRegionSlim"/> list.</param>
+    /// <param name="peb64">The process PEB.</param>
+    /// <param name="pebBase">The PEB base address.</param>
+    private static unsafe void ProcessPebInformationSlim(SafeProcessHandle hProcess, List<ProcessMemoryRegionSlim> regionList, ref PEB peb64, nint pebBase)
+    {
+        SetMemoryRegionType(regionList, pebBase, WinVer.CurrentVersion < WinVer.WINDOWS_10_RS2, MemoryRegionType.Peb);
+
+        int heapsBufferSize = (int)peb64.NumberOfHeaps * nint.Size;
+        byte[] heapsBuffer = new byte[heapsBufferSize];
+        if (TryReadProcessMemory(hProcess, peb64.ProcessHeaps, new Span<byte>(heapsBuffer), heapsBufferSize)) {
+            fixed (byte* heapsPtr = heapsBuffer) {
+                nint offset = new(heapsPtr);
+                for (int i = 0; i < peb64.NumberOfHeaps; i++) {
+                    SetMemoryRegionType(regionList, offset, true, MemoryRegionType.NtHeap);
+                    offset = nint.Add(offset, nint.Size);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes the 32-bit PEB for a process.
+    /// </summary>
+    /// <param name="hProcess">The handle to the process.</param>
+    /// <param name="regionList">The <see cref="ProcessMemoryRegionSlim"/> list.</param>
+    /// <param name="peb32">The process PEB.</param>
+    /// <param name="pebBase">The PEB base address.</param>
+    private static unsafe void ProcessPebInformationSlim32(SafeProcessHandle hProcess, List<ProcessMemoryRegionSlim> regionList, ref PEB32 peb32, nint pebBase)
+    {
+        SetMemoryRegionType(regionList, pebBase, WinVer.CurrentVersion < WinVer.WINDOWS_10_RS2, MemoryRegionType.Peb);
+
+        int heapsBufferSize = (int)peb32.NumberOfHeaps * nint.Size;
+        byte[] heapsBuffer = new byte[heapsBufferSize];
+        if (TryReadProcessMemory(hProcess, (nint)peb32.ProcessHeaps, new Span<byte>(heapsBuffer), heapsBufferSize)) {
+            fixed (byte* heapsPtr = heapsBuffer) {
+                nint offset = new(heapsPtr);
+                for (int i = 0; i < peb32.NumberOfHeaps; i++) {
+                    SetMemoryRegionType(regionList, offset, true, MemoryRegionType.NtHeap);
+                    offset = nint.Add(offset, nint.Size);
+                }
             }
         }
     }

@@ -352,6 +352,13 @@ public static class WindowsConsole
     public static void Write(string? value) => Out.Write(value);
 
     /// <summary>
+    /// Writes the formatted text representation of the specified value to the output stream.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="arguments">The arguments to format the string.</param>
+    public static void Write(string? value, params object[] arguments) => Out.Write(value, arguments);
+
+    /// <summary>
     /// Writes the text representation of the specified value to the output stream asynchronously.
     /// </summary>
     /// <param name="value">The value to write.</param>

@@ -11,6 +11,7 @@ using System.Xml.Serialization;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using ManagedStrings.Engine;
+using ManagedStrings.Handlers;
 
 namespace ManagedStrings.Serialization;
 
@@ -30,9 +31,10 @@ namespace ManagedStrings.Serialization;
 /// A result collection XML serializer.
 /// </summary>
 /// <param name="results">The results collection.</param>
-internal sealed class ResultCollectionXmlSerializer(ResultCollection results) : IXmlSerializable
+internal sealed class ResultCollectionXmlSerializer(ResultCollection results, ProgressHandler progressHandler) : IXmlSerializable
 {
     private readonly ResultCollection m_results = results;
+    private readonly ProgressHandler m_progressHandler = progressHandler;
 
     /// <summary>
     /// Serializes the result collection to a <see cref="TextWriter"/>.
@@ -49,7 +51,7 @@ internal sealed class ResultCollectionXmlSerializer(ResultCollection results) : 
         };
 
         using XmlWriter writer = XmlWriter.Create(output, settings);
-        ResultCollectionXmlSerializer serializer = new(results);
+        ResultCollectionXmlSerializer serializer = new(results, new(results.Count));
         serializer.WriteXml(writer);
     }
 
@@ -66,6 +68,7 @@ internal sealed class ResultCollectionXmlSerializer(ResultCollection results) : 
     /// <param name="writer">The writer to write to.</param>
     public void WriteXml(XmlWriter writer)
     {
+        long resultsSerializedBatchCount = 0;
         writer.WriteStartDocument();
         writer.WriteStartElement("ManagedStringsResult");
         writer.WriteAttributeString("xmlns", "xsi", null, "http://www.w3.org/2001/XMLSchema-instance");
@@ -92,11 +95,21 @@ internal sealed class ResultCollectionXmlSerializer(ResultCollection results) : 
             writer.WriteElementString("OffsetEnd", result.OffsetEnd.ToString());
             writer.WriteElementString("String", result.ResultString);
             writer.WriteEndElement();
+
+            // The console doesn't like us messing with virtual terminal sequences too fast.
+            if (resultsSerializedBatchCount >= 100) {
+                m_progressHandler.IncrementProgress(resultsSerializedBatchCount);
+                resultsSerializedBatchCount = 0;
+            }
+
+            resultsSerializedBatchCount++;
         }
 
         writer.WriteEndElement();
         writer.WriteEndDocument();
         writer.Flush();
+
+        ProgressHandler.SetToDefault();
     }
 }
 
@@ -127,7 +140,7 @@ internal static partial class JsonExtensions
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         }),
 
-        Converters = { new ResultListConverter() },
+        Converters = { new ResultListConverter(new(1)) },
         WriteIndented = true,
     };
 
@@ -136,8 +149,23 @@ internal static partial class JsonExtensions
     /// </summary>
     /// <param name="value">The result collection.</param>
     /// <returns>The JSON serialized string.</returns>
-    internal static string SerializeResultCollection(ResultCollection value)
-        => JsonSerializer.Serialize(value, (JsonTypeInfo<ResultCollection>)s_resultSerializerOptions.GetTypeInfo(typeof(ResultCollection)));
+    internal static void SerializeResultCollection(ResultCollection value, Stream stream)
+    {
+        // Creating the writer ourselves to we can flush straigh to the stream without
+        // using an intermediary IBufferWriter<Byte>.
+        // When serializing huge lists the buffer writer will overflow.
+        Utf8JsonWriter writer = new(stream, new() {
+            Encoder = null,
+            Indented = true,
+            IndentSize = 4,
+            IndentCharacter = ' ',
+            MaxDepth = 0x40,
+            NewLine = "\r\n",
+            SkipValidation = true,
+        });
+
+        JsonSerializer.Serialize(writer, value, (JsonTypeInfo<ResultCollection>)s_resultSerializerOptions.GetTypeInfo(typeof(ResultCollection)));
+    }
 }
 
 /// <summary>
@@ -215,6 +243,27 @@ public class FileResultConverter : JsonConverter<FileResult>
         writer.WriteString("String", value.ResultString);
         writer.WriteEndObject();
         writer.Flush();
+    }
+
+    /// <summary>
+    /// Serializes a <see cref="FileResult"/> into a JSON writer without flushing.
+    /// </summary>
+    /// <param name="writer">The JSON writer.</param>
+    /// <param name="value">The file result to serialize.</param>
+    /// <param name="options">The serialization options.</param>
+    /// <remarks>
+    /// This method is to be used while serializing a collection of <see cref="Result"/> so
+    /// we only flush to the disk when we reached a threshold.
+    /// </remarks>
+    internal static void WriteNoFlush(Utf8JsonWriter writer, FileResult value)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("File", value.File);
+        writer.WriteString("Encoding", value.Encoding.ToString());
+        writer.WriteNumber("OffsetStart", value.OffsetStart);
+        writer.WriteNumber("OffsetEnd", value.OffsetEnd);
+        writer.WriteString("String", value.ResultString);
+        writer.WriteEndObject();
     }
 }
 
@@ -316,15 +365,38 @@ public class ProcessResultConverter : JsonConverter<ProcessResult>
         writer.WriteEndObject();
         writer.Flush();
     }
+
+    /// <summary>
+    /// Serializes a <see cref="ProcessResult"/> into a JSON writer without flushing.
+    /// </summary>
+    /// <param name="writer">The JSON writer.</param>
+    /// <param name="value">The process result to serialize.</param>
+    /// <param name="options">The serialization options.</param>
+    /// <remarks>
+    /// This method is to be used while serializing a collection of <see cref="Result"/> so
+    /// we only flush to the disk when we reached a threshold.
+    /// </remarks>
+    internal static void WriteNoFlush(Utf8JsonWriter writer, ProcessResult value)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("ProcessId", value.ProcessId);
+        writer.WriteString("Name", value.Name);
+        writer.WriteString("RegionType", value.RegionType.ToString());
+        writer.WriteString("Details", value.Details);
+        writer.WriteString("Encoding", value.Encoding.ToString());
+        writer.WriteNumber("OffsetStart", value.OffsetStart);
+        writer.WriteNumber("OffsetEnd", value.OffsetEnd);
+        writer.WriteString("String", value.ResultString);
+        writer.WriteEndObject();
+    }
 }
 
 /// <summary>
 /// Converts a result collection to and from JSON.
 /// </summary>
-public class ResultListConverter : JsonConverter<ResultCollection>
+public class ResultListConverter(ProgressHandler progressHandler) : JsonConverter<ResultCollection>
 {
-    private static readonly FileResultConverter s_fileConverter = new();
-    private static readonly ProcessResultConverter s_processConverter = new();
+    private readonly ProgressHandler m_progressHandler = progressHandler;
 
     // We don't use the desserialization, so I don't want to go through the hassle.
     public override ResultCollection? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -338,14 +410,27 @@ public class ResultListConverter : JsonConverter<ResultCollection>
     /// <param name="options">The serialization options.</param>
     public override void Write(Utf8JsonWriter writer, ResultCollection value, JsonSerializerOptions options)
     {
+        long resultsSerializedBatchCount = 0;
+        m_progressHandler.Reset(value.Count);
+
         writer.WriteStartArray();
         foreach (Result result in value) {
             if (result is FileResult fileResult)
-                s_fileConverter.Write(writer, fileResult, options);
+                FileResultConverter.WriteNoFlush(writer, fileResult);
             else if (result is ProcessResult processResult)
-                s_processConverter.Write(writer, processResult, options);
+                ProcessResultConverter.WriteNoFlush(writer, processResult);
+
+            if (writer.BytesPending >= 1048576) {
+                writer.Flush();
+                m_progressHandler.IncrementProgress(resultsSerializedBatchCount);
+                resultsSerializedBatchCount = 0;
+            }
+
+            resultsSerializedBatchCount++;
         }
         writer.WriteEndArray();
         writer.Flush();
+
+        ProgressHandler.SetToDefault();
     }
 }

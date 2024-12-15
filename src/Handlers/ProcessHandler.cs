@@ -13,6 +13,8 @@ using System.Runtime.CompilerServices;
 using ManagedStrings.Lab;
 using ManagedStrings.Engine;
 using ManagedStrings.Decoders;
+using ManagedStrings.Interop.Windows;
+using ManagedStrings.Engine.Console;
 
 namespace ManagedStrings.Handlers;
 
@@ -48,9 +50,22 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
     /// <exception cref="ArgumentException"></exception>
     private ProcessBenchmarkData? HandleInternal(bool benchmark, CancellationToken cancellationToken)
     {
+        if (Printer.IsPrintToFile) {
+            WindowsConsole.WriteLine("Searching for strings...");
+            WindowsConsole.Flush();
+        }
+
         Stopwatch sw = Stopwatch.StartNew();
         if (Options.PrintHeader)
             Printer.PrintHeader();
+
+        // Getting the total memory size for the progress handler.
+        long totalProcessMemorySize = 0;
+        foreach (uint processId in Options.ProcessId)
+            totalProcessMemorySize += NativeProcess.GetProcessMemorySize(processId, Options.MemoryRegionType);
+
+        // Creating the progress handler.
+        using ProgressHandler progressHandler = new(totalProcessMemorySize);
 
         if (benchmark) {
             ProcessBenchmarkData benchmarkData = new();
@@ -58,7 +73,7 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
             // Handling synchronously.
             if (Options.Synchronous && !Options.RunMultipleItensAsync) {
                 foreach (uint processId in Options.ProcessId)
-                    benchmarkData.SingleTimeList.Add(HandleProcess(processId, cancellationToken));
+                    benchmarkData.SingleTimeList.Add(HandleProcess(processId, progressHandler, cancellationToken));
 
                 sw.Stop();
                 benchmarkData.TotalTime = sw.Elapsed;
@@ -81,7 +96,7 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
                     // will wait for sometime before creating new threads(based on some heuristics).
                     // https://stackoverflow.com/questions/39994896/task-run-takes-much-time-to-start-the-task
                     Task<SingleProcessTime>[] tasks = [.. Options.ProcessId.Select(pid => Task.Factory.StartNew(
-                        () => HandleProcess(pid, cancellationToken),
+                        () => HandleProcess(pid, progressHandler, cancellationToken),
                         cancellationToken,
                         TaskCreationOptions.PreferFairness | TaskCreationOptions.LongRunning,
                         TaskScheduler.Default
@@ -99,7 +114,7 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
 
                 // Running multiple processes synchronously, but with possible async decoding.
                 foreach (uint processId in Options.ProcessId)
-                    benchmarkData.SingleTimeList.Add(HandleProcess(processId, cancellationToken));
+                    benchmarkData.SingleTimeList.Add(HandleProcess(processId, progressHandler, cancellationToken));
 
                 sw.Stop();
                 benchmarkData.TotalTime = sw.Elapsed;
@@ -108,7 +123,7 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
             }
 
             // Single process.
-            benchmarkData.SingleTimeList.Add(HandleProcess(Options.ProcessId[0], cancellationToken));
+            benchmarkData.SingleTimeList.Add(HandleProcess(Options.ProcessId[0], progressHandler, cancellationToken));
 
             sw.Stop();
             benchmarkData.TotalTime = sw.Elapsed;
@@ -120,7 +135,7 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
         sw.Stop();
         if (Options.Synchronous) {
             foreach (uint processId in Options.ProcessId)
-                HandleProcess(processId, cancellationToken);
+                HandleProcess(processId, progressHandler, cancellationToken);
 
             return default;
         }
@@ -128,7 +143,7 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
         if (Options.ProcessId.Count > 1) {
             if (Options.RunMultipleItensAsync) {
                 Task.WaitAll([.. Options.ProcessId.Select(pid => Task.Factory.StartNew(
-                    () => HandleProcess(pid, cancellationToken),
+                    () => HandleProcess(pid, progressHandler, cancellationToken),
                     cancellationToken,
                     TaskCreationOptions.PreferFairness | TaskCreationOptions.LongRunning,
                     TaskScheduler.Default
@@ -138,12 +153,12 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
             }
 
             foreach (uint processId in Options.ProcessId)
-                HandleProcess(processId, cancellationToken);
+                HandleProcess(processId, progressHandler, cancellationToken);
 
             return default;
         }
 
-        HandleProcess(Options.ProcessId[0], cancellationToken);
+        HandleProcess(Options.ProcessId[0], progressHandler, cancellationToken);
 
         return default;
     }
@@ -152,10 +167,11 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
     /// Handles a single process.
     /// </summary>
     /// <param name="processId">The process ID.</param>
+    /// <param name="progressHandler">The progress handler.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> to be monitored.</param>
     /// <returns>The <see cref="SingleProcessTime"/> containing the operation time information.</returns>
     /// <exception cref="EndOfStreamException">The start offset can't be greater or equal to the stream length.</exception>
-    private unsafe SingleProcessTime HandleProcess(uint processId, CancellationToken cancellationToken)
+    private unsafe SingleProcessTime HandleProcess(uint processId, ProgressHandler progressHandler, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -246,6 +262,9 @@ internal sealed class ProcessHandler(CommandLineOptions options, Printer printer
                 else
                     Task.WaitAll(ProcessBufferAsync(processStream, defaultOffsetInfo, bufferPtr, currentReadCount, workInfo, cancellationToken), cancellationToken);
             }
+
+            // Reporting the progress.
+            progressHandler.IncrementProgress(currentReadCount);
 
         } while (totalRead < bytesToScan);
 

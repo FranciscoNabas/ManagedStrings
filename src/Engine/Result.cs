@@ -13,6 +13,8 @@ namespace ManagedStrings.Engine;
 public sealed class ResultCollection
 {
     private readonly List<Result> m_list = [];
+    
+    internal int Count => m_list.Count;
 
     internal void Add(Result item)
         => m_list.Add(item);
