@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "ManagedStrings": {
+      "commandName": "Project",
+      "commandLineArgs": "-pid 666 -f Tits! -ft Regex -fo Compiled -o C:\\Tits.xml -ot xml -mt \"heap|stack\" -pp \"processid|details\"",
+      "nativeDebugging": true
+    }
+  }
+}
