@@ -1,35 +1,33 @@
-# ManagedStrings
+<img align="left" src="Resources/ManagedStrings.ico" width="100" height="100" style="max-width: 100%;padding-right: 20px;">
 
-The ultimate binary string search utility!
+<!-- omit in toc -->
+## ManagedStrings
 
-## Description
+The ultimate binary string search utility!  
+A console application that searches for strings on binary files and processes virtual memory space.
 
-**ManagedStrings** is a console application that searches for strings on binary files and processes virtual memory space.
-
+<!-- omit in toc -->
 ## Table of contents
 
-- [ManagedStrings](#managedstrings)
-  - [Description](#description)
-  - [Table of contents](#table-of-contents)
-  - [Command line options](#command-line-options)
-  - [Remarks](#remarks)
-  - [Supported values](#supported-values)
-    - [-o](#-o)
-    - [-fo](#-fo)
-    - [-mt](#-mt)
-    - [-pf](#-pf)
-    - [-pp](#-pp)
-    - [-ot](#-ot)
-  - [Unicode blocks](#unicode-blocks)
-  - [Examples](#examples)
-  - [Test parameters](#test-parameters)
-    - [--TestDoBenchmark](#--testdobenchmark)
-    - [--TestConsoleBufferSize](#--testconsolebuffersize)
-    - [--TestConsoleUseDriver](#--testconsoleusedriver)
-    - [--TestRunItemsAsync](#--testrunitemsasync)
-  - [Building and publishing](#building-and-publishing)
-  - [Code referencing](#code-referencing)
-  - [A very special thanks](#a-very-special-thanks)
+- [Command line options](#command-line-options)
+- [Remarks](#remarks)
+- [Supported values](#supported-values)
+  - [-o](#-o)
+  - [-fo](#-fo)
+  - [-mt](#-mt)
+  - [-pf](#-pf)
+  - [-pp](#-pp)
+  - [-ot](#-ot)
+- [Unicode blocks](#unicode-blocks)
+- [Examples](#examples)
+- [Test parameters](#test-parameters)
+  - [--TestDoBenchmark](#--testdobenchmark)
+  - [--TestConsoleBufferSize](#--testconsolebuffersize)
+  - [--TestConsoleUseDriver](#--testconsoleusedriver)
+  - [--TestRunItemsAsync](#--testrunitemsasync)
+- [Building and publishing](#building-and-publishing)
+- [Code referencing](#code-referencing)
+- [A very special thanks](#a-very-special-thanks)
 
 ## Command line options
 
