@@ -4,7 +4,7 @@
 ## ManagedStrings
 
 The ultimate binary string search utility!  
-A console application that searches for strings on binary files and processes virtual memory space.
+Searches for strings on binary files and processes virtual memory space.
 
 <!-- omit in toc -->
 ## Table of contents
