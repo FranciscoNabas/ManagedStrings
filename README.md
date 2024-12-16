@@ -1,7 +1,7 @@
-<img align="left" src="Resources/ManagedStrings.ico" width="100" height="100" style="max-width: 100%;padding-right: 20px;">
+<img align="left" src="Resources/ManagedStrings.ico" width="120" height="120" style="max-width: 100%;padding-right: 20px;">
 
-<!-- omit in toc -->
-## ManagedStrings
+
+<p style="font-size: 22px; font-style: bold">ManagedStrings</p>
 
 The ultimate binary string search utility!  
 A console application that searches for strings on binary files and processes virtual memory space.
