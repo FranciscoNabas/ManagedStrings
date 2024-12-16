@@ -1,4 +1,4 @@
-<img align="left" src="Resources/ManagedStrings.ico" width="120" height="120" style="max-width: 100%;padding-right: 20px;">
+<img align="left" src="Resources/ManagedStrings.ico" width="128" height="128" style="max-width: 100%;padding-right: 20px;">
 
 <!-- omit in toc -->
 ## ManagedStrings
