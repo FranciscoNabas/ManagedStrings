@@ -49,7 +49,7 @@ public enum MemoryRegionType
 /// memory region it wants to search.
 /// </summary>
 /// <remarks>
-/// These bit flag values allign with the <see cref="MemoryRegionType"/>
+/// These bit flag values align with the <see cref="MemoryRegionType"/>
 /// so the user can include multiple regions without a lot of options.
 /// </remarks>
 [Flags]
@@ -62,7 +62,7 @@ public enum ReadMemoryFlags
     Shareable   = 0x2000000,  // Only mapped shareable regions.
     Mapped      = 0x3000000,  // Mapped files, shareable regions, plus the remaining mapped data (if any).
     Image       = 0x4000000,  // Only image files.
-    All         = 0x7FFFFFF,  // All the processe's commited memory (it's a lot).
+    All         = 0x7FFFFFF,  // All the process' committed memory (it's a lot).
 }
 
 /// <summary>

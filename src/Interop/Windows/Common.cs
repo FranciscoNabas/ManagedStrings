@@ -458,7 +458,7 @@ internal static partial class Common
     }
 
     /// <summary>
-    /// Copies memory from a source addres to a destination span.
+    /// Copies memory from a source address to a destination span.
     /// </summary>
     /// <param name="source">The source pointer.</param>
     /// <param name="destination">The destination span.</param>

@@ -205,7 +205,7 @@ internal sealed class CommandLineOptions
         TestConsoleBufferSize,
         TestConsoleUseDriver,
         TestBenchmark,
-        TestRunMultipleItensAsync,
+        TestRunMultipleItemsAsync,
     }
 
     /// <summary>
@@ -222,7 +222,7 @@ internal sealed class CommandLineOptions
     }
 
     /// <summary>
-    /// Represends the FSM state.
+    /// Represents the FSM state.
     /// </summary>
     private sealed class State
     {
@@ -272,7 +272,7 @@ internal sealed class CommandLineOptions
     internal uint ConsoleBufferSize { get; private set; } = 81920;
     internal bool ConsoleUseDriver { get; private set; } = false;
     internal bool Benchmark { get; private set; } = false;
-    internal bool RunMultipleItensAsync { get; private set; } = false;
+    internal bool RunMultipleItemsAsync { get; private set; } = false;
 
     // Helps us to query directories accounting for wildcards.
     internal FSObjectInfo? FSInfo { get; private set; }
@@ -548,9 +548,9 @@ internal sealed class CommandLineOptions
                 // For more info see 'ProcessHandler.cs' and 'FileHandler.cs'.
                 // Requires extra argument: False.
                 case "--TESTRUNITEMSASYNC":
-                    fsmState.Type = TokenType.TestRunMultipleItensAsync;
-                    output.RunMultipleItensAsync = true;
-                    currentToken = new(TokenType.TestRunMultipleItensAsync, argument, true);
+                    fsmState.Type = TokenType.TestRunMultipleItemsAsync;
+                    output.RunMultipleItemsAsync = true;
+                    currentToken = new(TokenType.TestRunMultipleItemsAsync, argument, true);
                     break;
 
                 // Catch all.
@@ -664,7 +664,7 @@ internal sealed class CommandLineOptions
                             case TokenType.TestBenchmark:
                             case TokenType.ExcludeControlCp:
                             case TokenType.TestConsoleUseDriver:
-                            case TokenType.TestRunMultipleItensAsync:
+                            case TokenType.TestRunMultipleItemsAsync:
                             case TokenType.Literal:
                                 if (fsmState.WasPathParsed)
                                     throw new CommandLineParserException(argument);
@@ -1029,7 +1029,7 @@ internal sealed class CommandLineOptions
                     currentState.PreviousToken.Type != TokenType.TestBenchmark &&
                     currentState.PreviousToken.Type != TokenType.ExcludeControlCp &&
                     currentState.PreviousToken.Type != TokenType.TestConsoleUseDriver &&
-                    currentState.PreviousToken.Type != TokenType.TestRunMultipleItensAsync
+                    currentState.PreviousToken.Type != TokenType.TestRunMultipleItemsAsync
                 )
                     throw new CommandLineParserException(currentState.Argument!);
 

@@ -1247,7 +1247,7 @@ internal static partial class Heap
     /// <summary>
     /// Allocates a block of memory in the current process heap.
     /// </summary>
-    /// <param name="size">The blockk size.</param>
+    /// <param name="size">The block size.</param>
     /// <returns>The address of the allocated buffer.</returns>
     /// <exception cref="OutOfMemoryException">HeapAlloc returned NULL.</exception>
     internal static nint Alloc(ulong size)
@@ -1586,7 +1586,7 @@ internal static partial class Heap
 
     //                HEAP_VS_SUBSEGMENT
     //                    - Used to describe all blocks that don't fit in the LFH buckets.
-    //                      Every block hasa header to describe it (HEAP_VS_CHUNK_HEADER).
+    //                      Every block has a header to describe it (HEAP_VS_CHUNK_HEADER).
     //             */
 
     //        } while (entry != segListOffset);

@@ -237,7 +237,7 @@ internal class ProcessDebugInformation
 
         // From SystemInformer:
         // The RtlQueryProcessDebugInformation function has two bugs on some versions
-        // when querying the ProcessId for a frozen (suspended) immersive process. (dmex)
+        // when querying the ProcessId for a frozen (suspended) immersive process.
         //
         // 1) It'll deadlock the current thread for 30 seconds.
         // 2) It'll return STATUS_SUCCESS but with a NULL Heaps buffer.

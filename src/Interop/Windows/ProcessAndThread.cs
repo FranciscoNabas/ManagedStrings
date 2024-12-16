@@ -554,7 +554,7 @@ internal static partial class NativeProcess
     /// Attempts to read from a process virtual memory space.
     /// </summary>
     /// <param name="hProcess">The handle to the process.</param>
-    /// <param name="baseAddress">The base addres to start reading from.</param>
+    /// <param name="baseAddress">The base address to start reading from.</param>
     /// <param name="buffer">The buffer to read into.</param>
     /// <param name="count">The number of bytes to read.</param>
     /// <returns>True if successfully read the requested number of bytes.</returns>
@@ -572,7 +572,7 @@ internal static partial class NativeProcess
     /// Attempts to read from a process virtual memory space.
     /// </summary>
     /// <param name="hProcess">The handle to the process.</param>
-    /// <param name="baseAddress">The base addres to start reading from.</param>
+    /// <param name="baseAddress">The base address to start reading from.</param>
     /// <param name="buffer">The buffer to read into.</param>
     /// <param name="count">The number of bytes to read.</param>
     /// <returns>True if successfully read the requested number of bytes.</returns>
@@ -611,7 +611,7 @@ internal static partial class NativeProcess
         while (NtQueryVirtualMemory(hProcess, address, MEMORY_INFORMATION_CLASS.BasicInformation, buffer, basicInfoSize, out _) == ErrorCodes.STATUS_SUCCESS) {
             MEMORY_BASIC_INFORMATION mbi = Marshal.PtrToStructure<MEMORY_BASIC_INFORMATION>(buffer);
 
-            // We only query commited memory because reading from other types doesn't make sense.
+            // We only query committed memory because reading from other types doesn't make sense.
             if (mbi.State == MemoryState.COMMIT && (mbi.Protect & (PageProtection.NOACCESS | PageProtection.GUARD)) == 0) {
                 ProcessMemoryRegionSlim currentRegion = new(ref mbi);
 
@@ -670,7 +670,7 @@ internal static partial class NativeProcess
         while (NtQueryVirtualMemory(hProcess, address, MEMORY_INFORMATION_CLASS.BasicInformation, buffer, basicInfoSize, out _) == ErrorCodes.STATUS_SUCCESS) {
             MEMORY_BASIC_INFORMATION mbi = Marshal.PtrToStructure<MEMORY_BASIC_INFORMATION>(buffer);
 
-            // We only query commited memory because reading from other types doesn't make sense.
+            // We only query committed memory because reading from other types doesn't make sense.
             if (mbi.State == MemoryState.COMMIT && (mbi.Protect & (PageProtection.NOACCESS | PageProtection.GUARD)) == 0) {
                 ProcessMemoryRegion currentRegion;
                 if (debugInfo is not null) {
@@ -725,7 +725,7 @@ internal static partial class NativeProcess
     /// <param name="hProcess">The handle to the process.</param>
     /// <param name="regionList">The process memory region list.</param>
     /// <remarks>
-    /// This method was almost entirelly based on the SystemInformer verison.
+    /// This method was almost entirely based on the SystemInformer version.
     /// </remarks>
     private static unsafe void UpdateMemoryRegionTypesSlim(uint processId, SafeProcessHandle hProcess, List<ProcessMemoryRegionSlim> regionList)
     {
@@ -818,7 +818,7 @@ internal static partial class NativeProcess
     /// <param name="hProcess">The handle to the process.</param>
     /// <param name="regionList">The process memory region list.</param>
     /// <remarks>
-    /// This method was almost entirelly based on the SystemInformer verison.
+    /// This method was almost entirely based on the SystemInformer version.
     /// </remarks>
     private static unsafe void UpdateMemoryRegionTypes(uint processId, SafeProcessHandle hProcess, List<ProcessMemoryRegion> regionList)
     {
@@ -830,7 +830,7 @@ internal static partial class NativeProcess
         // 2 - Update user shared data.
         SetMemoryRegionType(regionList, Constants.USER_SHARED_DATA, true, MemoryRegionType.UserSharedData);
 
-        // 3 - Update hipervisor shared data.
+        // 3 - Update hypervisor shared data.
         if (WinVer.CurrentVersion >= WinVer.WINDOWS_10_RS4) {
             nint hypervisorSUVa = GetSystemHypervisorSharedPageInformation();
             if (hypervisorSUVa != nint.Zero)

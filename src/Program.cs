@@ -287,7 +287,7 @@ internal class Program
             The default block is 'BasicLatin', that covers all ASCII characters (0x00..0x7F).
             You can combine multiple blocks with '|', E.g., 'LatinExtensions|Cyrillic', or 'All' to include all blocks.
             
-            We only print strings that belong to the same block, I.e., stringgs bigger than '-n' that are from the same block.
+            We only print strings that belong to the same block, I.e., strings bigger than '-n' that are from the same block.
             The exception is 'BasicLatin' and 'LatinExtensions'. Those can appear in the same string.
             Regardless of the input 'BasicLatin' is always included.
         
@@ -434,7 +434,7 @@ internal class Program
 
         Test options:
             Do benchmark: {options.Benchmark}.
-            Run itens async: {options.RunMultipleItensAsync}.
+            Run items async: {options.RunMultipleItemsAsync}.
             Console buffer size: {options.ConsoleBufferSize}.
             Console use driver: {options.ConsoleUseDriver}.
 

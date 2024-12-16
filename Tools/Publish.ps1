@@ -7,7 +7,7 @@ param (
 $currentDir = Push-Location -Path ([System.IO.Path]::Combine($PSScriptRoot, '..')) -PassThru
 
 Remove-Item -Path ([System.IO.Path]::Combine($currentDir, 'out\Release\win-x64')) -Recurse -Force -ErrorAction SilentlyContinue
-$outDirInfo = [System.IO.Directory]::CreateDirectory([System.IO.Path]::Combine($currentDir, 'out\Release\win-x64\Artifacts'))
+$outDirInfo = [System.IO.Directory]::CreateDirectory([System.IO.Path]::Combine($currentDir, 'out\Release\win-x64'))
 
 $publishSplat = @{
     FilePath = 'dotnet'

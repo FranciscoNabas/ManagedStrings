@@ -89,7 +89,7 @@ internal sealed class ResultCollectionXmlSerializer(ResultCollection results, Pr
             // File specific data.
             if (result is FileResult fileResult && fileResult is not null) {
                 writer.WriteAttributeString("type", "http://www.w3.org/2001/XMLSchema-instance", "FileResult");
-                writer.WriteElementString("Flie", fileResult.File);
+                writer.WriteElementString("File", fileResult.File);
 
                 goto GENERALPROPERTIES;
             }
@@ -140,7 +140,7 @@ public partial class ResultContext : JsonSerializerContext { }
 /// </summary>
 /// <remarks>
 /// There are some known issues with Native AOT and JSON code generation where
-/// the compiler still emmits warnings about using serialization APIs.
+/// the compiler still emits warnings about using serialization APIs.
 /// This extension makes sure we use the code generation, and silences the compiler.
 /// </remarks>
 /// <seealso href="https://stackoverflow.com/a/78649561/10234464"/>
@@ -165,7 +165,7 @@ internal static partial class JsonExtensions
     /// <returns>The JSON serialized string.</returns>
     internal static void SerializeResultCollection(ResultCollection value, Stream stream)
     {
-        // Creating the writer ourselves to we can flush straigh to the stream without
+        // Creating the writer ourselves to we can flush straight to the stream without
         // using an intermediary IBufferWriter<Byte>.
         // When serializing huge lists the buffer writer will overflow.
         Utf8JsonWriter writer = new(stream, new() {
@@ -188,7 +188,7 @@ internal static partial class JsonExtensions
 public class FileResultConverter : JsonConverter<FileResult>
 {
     /// <summary>
-    /// Desserializes a JSON reader into a <see cref="FileResult"/>.
+    /// Deserializes a JSON reader into a <see cref="FileResult"/>.
     /// </summary>
     /// <param name="reader">The JSON reader.</param>
     /// <param name="typeToConvert">The type to convert.</param>
@@ -287,7 +287,7 @@ public class FileResultConverter : JsonConverter<FileResult>
 public class ProcessResultConverter : JsonConverter<ProcessResult>
 {
     /// <summary>
-    /// Desserializes a JSON reader into a <see cref="ProcessResult"/>.
+    /// Deserializes a JSON reader into a <see cref="ProcessResult"/>.
     /// </summary>
     /// <param name="reader">The JSON reader.</param>
     /// <param name="typeToConvert">The type to convert.</param>
@@ -412,7 +412,7 @@ public class ResultListConverter(ProgressHandler progressHandler) : JsonConverte
 {
     private readonly ProgressHandler m_progressHandler = progressHandler;
 
-    // We don't use the desserialization, so I don't want to go through the hassle.
+    // We don't use the deserialization, so I don't want to go through the hassle.
     public override ResultCollection? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         => throw new NotImplementedException();
 

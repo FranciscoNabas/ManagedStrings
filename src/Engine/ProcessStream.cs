@@ -62,10 +62,10 @@ internal sealed class ProcessStreamOffsetInfo
 /// A stream wrapping a process virtual address space.
 /// </summary>
 /// <remarks>
-/// This stream, in oposition to the console stream, only reads.
+/// This stream, in opposition to the console stream, only reads.
 /// Although it's possible to write to a process virtual memory space
 /// we don't need to.
-/// Tha main chanllenge here is to have a contiguous buffer while process
+/// Tha main challenge here is to have a contiguous buffer while process
 /// virtual memory is not. We have to make sure our buffer read position aligns
 /// with the process virtual memory offsets.
 /// </remarks>
@@ -261,9 +261,9 @@ internal sealed class ProcessStream : Stream
     /// <returns>The number of bytes read, or zero if there's nothing to read.</returns>
     /// <remarks>
     /// When reading from process virtual memory there is no such thing as a partial read.
-    /// When calling the native API it scans the memory at the startig offset, and if it hits
+    /// When calling the native API it scans the memory at the starting offset, and if it hits
     /// an invalid region it returns nothing.
-    /// This can happen because process memory is dinamic, and we might try to read a region
+    /// This can happen because process memory is dynamic, and we might try to read a region
     /// that was freed from the time we scanned.
     /// For this reason we can't quite maintain the Stream contract, and we can't throw if
     /// we fail to read, because other regions might still be valid.

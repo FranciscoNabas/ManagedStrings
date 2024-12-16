@@ -189,7 +189,7 @@ internal sealed class MultiKeyDictionary<TKey1, TKey2, TValue> : IEnumerable<Key
 internal readonly struct KeyValueTriple<TKey1, TKey2, TValue>
 {
     // This structure is not entirely necessary as we could accomplish the same with tuples.
-    // However this makes our API more familiar to a tractictional dictionary.
+    // However this makes our API more familiar to a traditional dictionary.
     private readonly TKey1 m_key1;
     private readonly TKey2 m_key2;
     private readonly TValue m_value;
@@ -241,7 +241,7 @@ internal readonly struct KeyValueTriple<TKey1, TKey2, TValue>
 /// Contains methods to create a <see cref="MultiKeyDictionary{TKey1, TKey2, TValue}"/>.
 /// </summary>
 /// <seealso href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/collection-expressions">Collection expressions</seealso>
-/// <seealso href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/proposals/csharp-12.0/collection-expressions">Collectino expressions - Feature specification</seealso>
+/// <seealso href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/proposals/csharp-12.0/collection-expressions">Collection expressions - Feature specification</seealso>
 internal static class MultiKeyDictionaryBuilder
 {
     internal static MultiKeyDictionary<TKey1, TKey2, TValue> Create<TKey1, TKey2, TValue>(ReadOnlySpan<KeyValueTriple<TKey1, TKey2, TValue>> value)

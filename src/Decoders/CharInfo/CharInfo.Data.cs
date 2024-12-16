@@ -12,7 +12,7 @@ namespace ManagedStrings.Decoders;
 internal static partial class CharInfo
 {
     /// <summary>
-    /// A collection of booleans indicating if the byte representation of an ASCII character is printable.
+    /// A collection of boolean indicating if the byte representation of an ASCII character is printable.
     /// A printable character are all characters excluding control code points.
     /// This collection includes the control code points 'HT', 'LF', and 'CR', representing Horizontal Tabulation (0x09),
     /// Line Feed (0x0A), and Carriage Return (0x0D), respectively.
@@ -40,7 +40,7 @@ internal static partial class CharInfo
     ];
 
     /// <summary>
-    /// A collection of booleans indicating if the byte representation of an ASCII character is printable.
+    /// A collection of boolean indicating if the byte representation of an ASCII character is printable.
     /// It's similar to <see cref="PrintableASCIIMap"/>, but without the 'HT', 'LF', and 'CR' code points.
     /// </summary>
     /// <seealso href="https://en.wikipedia.org/wiki/ASCII">ASCII - Wikipedia</seealso>

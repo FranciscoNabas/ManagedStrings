@@ -1,9 +1,0 @@
-{
-  "profiles": {
-    "ManagedStrings": {
-      "commandName": "Project",
-      "commandLineArgs": "C:\\tmp\\ManagedStringsTest\\MultipleFileSizeTest\\FortiClientVPN-[0x8D59-KB].exe -o C:\\testStrings.xml -ot xml --force",
-      "nativeDebugging": true
-    }
-  }
-}

@@ -285,7 +285,7 @@ This switch has no effect if used with **--sync**.
 
 This project doesn't have a special build procedure, if you have Visual Studio with the .NET SDK 9.0 you should be able to build it.  
 For publishing since we are using options to trim the code you should use the [Publish.ps1][15] script.  
-The output of the script will be at `out\Release\win-x64\Artifacts` or at `out\Release\win-x64\ManagedStrings.zip` if you used the `-Compress` switch.
+The output of the script will be at `out\Release\win-x64` or at the root as `ManagedStrings.zip` if you used the `-Compress` switch.
 
 ## Code referencing
 

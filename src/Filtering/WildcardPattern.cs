@@ -339,7 +339,7 @@ internal abstract class WildcardPatternParser
             throw new WildcardPatternException($"Invalid wildcard pattern '{pattern.Pattern}'.");
 
         if (previousCharacterIsAnEscape) {
-            if (!pattern.Pattern.Equals("`", StringComparison.Ordinal))  // Win7 backcompatibility requires treating '`' pattern as '' pattern.
+            if (!pattern.Pattern.Equals("`", StringComparison.Ordinal))  // Win7 backwards-compatibility requires treating '`' pattern as '' pattern.
                 parser.AppendLiteralCharacter(pattern.Pattern[^1]);
         }
 

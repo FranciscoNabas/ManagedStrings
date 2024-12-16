@@ -28,7 +28,7 @@ internal static class EncodingExtensions
 }
 
 /// <summary>
-/// Encapsulates a <see cref="Encoding"/> without preable.
+/// Encapsulates a <see cref="Encoding"/> without preamble.
 /// <runtimefile>src/libraries/Common/src/System/Text/ConsoleEncoding.cs</runtimefile>
 /// </summary>
 internal sealed class ConsoleEncoding : Encoding

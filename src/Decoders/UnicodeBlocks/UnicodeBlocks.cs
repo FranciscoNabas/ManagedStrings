@@ -83,7 +83,7 @@ internal sealed partial class UnicodeBlocks : IEquatable<UnicodeBlocks?>, ICompa
     private const ulong AllFlagsLow = ulong.MaxValue;
     private const ulong AllFlagsHigh = 0x3FFFFFFFFFF;
 
-    // This dictionary contains the chached static 'UnicodeBlock's.
+    // This dictionary contains the cached static 'UnicodeBlock's.
     // This is used when parsing a block from a string, or to print the 'enumeration' representation string.
     // We have a cache because we use Linq Expressions to retrieve the 'enumeration values'.
     private static readonly MultiKeyDictionary<byte, string, UnicodeBlockPropertyRecord> s_blockExpressionMap = [];

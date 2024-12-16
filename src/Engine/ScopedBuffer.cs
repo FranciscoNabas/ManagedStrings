@@ -99,7 +99,7 @@ internal sealed class ScopedBuffer : IDisposable
         }
     }
 
-    // Operators to make our lifes easier (sometimes harder).
+    // Operators to make our lives easier (sometimes harder).
     public static implicit operator nint(ScopedBuffer other)
     {
         ObjectDisposedException.ThrowIf(other.m_isDisposed, other);

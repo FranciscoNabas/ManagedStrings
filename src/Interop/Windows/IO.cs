@@ -448,7 +448,7 @@ internal static partial class NativeIO
         FILE_FULL_DIR_INFORMATION* currentInformation;
         ReadOnlySpan<char> rootNameChars = new(info.Name.ToCharArray());
         
-        // Calling the function untill we have no more files.
+        // Calling the function until we have no more files.
         do {
             token.ThrowIfCancellationRequested();
 

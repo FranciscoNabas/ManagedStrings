@@ -36,10 +36,10 @@ public enum ConsoleIoType
 /// A string buffer header.
 /// </summary>
 /// <remarks>
-/// This was used when playng around with writing aligned strings while flushing to the console.
+/// This was used when playing around with writing aligned strings while flushing to the console.
 /// It contains the string length in bytes, if it's unicode and a magic number.
 /// 4 bytes are needed because we can use a bit for unicode and the other 31 which amount to the maximum array size.
-/// The magic number was chosen so it doesn't colide with any character:
+/// The magic number was chosen so it doesn't collide with any character:
 ///     - For ASCII the max. character is 0x7F.
 ///     - UTF8 doesn't have chars that starts with 0xF5-0xFF.
 ///     - For unicode these bytes fall within the Basic Plane Private Use Area (0xE000-0xF8FF).
@@ -115,10 +115,10 @@ internal abstract class ConsoleStreamStrategy(Encoding encoding) : Stream
     protected Encoding StrategyEncoding = encoding;
 
     // Console stream doesn't support seeking.
-    public override long Length => throw new InvalidOperationException("Console stream doesn't support seekking.");
+    public override long Length => throw new InvalidOperationException("Console stream doesn't support seeking.");
     public override long Position {
-        get => throw new InvalidOperationException("Console stream doesn't support seekking.");
-        set => throw new InvalidOperationException("Console stream doesn't support seekking.");
+        get => throw new InvalidOperationException("Console stream doesn't support seeking.");
+        set => throw new InvalidOperationException("Console stream doesn't support seeking.");
     }
 
     /// <summary>
@@ -155,10 +155,10 @@ internal abstract class ConsoleStreamStrategy(Encoding encoding) : Stream
     }
 
     public override long Seek(long offset, SeekOrigin origin)
-        => throw new InvalidOperationException("Console stream doesn't support seekking.");
+        => throw new InvalidOperationException("Console stream doesn't support seeking.");
 
     public override void SetLength(long value)
-        => throw new InvalidOperationException("Console stream doesn't support seekking.");
+        => throw new InvalidOperationException("Console stream doesn't support seeking.");
 
     internal virtual void SetBufferSize(int newSize) { }
 
@@ -198,7 +198,7 @@ internal abstract class ConsoleStreamStrategy(Encoding encoding) : Stream
     /// Writes a string to the underlying stream.
     /// </summary>
     /// <param name="value">The value to write.</param>
-    /// <returns>A <see cref="Task"/> representing the asyncronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     internal Task WriteAsync(string? value)
     {
         if (string.IsNullOrEmpty(value))
@@ -246,7 +246,7 @@ internal abstract class ConsoleStreamStrategy(Encoding encoding) : Stream
     /// <summary>
     /// Writes the current line terminator to the underlying stream asynchronously.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asyncronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     internal Task WriteLineAsync()
         => WriteLineAsync("\n\r");
 
@@ -254,7 +254,7 @@ internal abstract class ConsoleStreamStrategy(Encoding encoding) : Stream
     /// Writes the specified string value, followed by the current line terminator, to the underlying stream asynchronously.
     /// </summary>
     /// <param name="value"></param>
-    /// <returns>A <see cref="Task"/> representing the asyncronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     internal Task WriteLineAsync(string? value)
     {
         byte[] writeBuffer;
@@ -378,7 +378,7 @@ internal abstract class ConsoleStreamStrategy(Encoding encoding) : Stream
 /// To be able to buffer the text and minimize the calls to the underlying console API.
 /// This class was inspired on the 'System.IO.BufferedStreamStrategy'.
 /// I found adequate the way they handle file streams and applied this to our console solution.
-/// This class is merely a wapper on the <see cref="WindowsConsoleStreamStrategy"/>.
+/// This class is merely a wrapper on the <see cref="WindowsConsoleStreamStrategy"/>.
 /// </remarks>
 /// <runtimefile>src/libraries/System.Private.CoreLib/src/System/IO/Strategies/BufferedFileStreamStrategy.cs</runtimefile>
 internal sealed class BufferedConsoleStreamStrategy : ConsoleStreamStrategy
@@ -613,7 +613,7 @@ internal sealed class BufferedConsoleStreamStrategy : ConsoleStreamStrategy
             if (remainingBytes > 0) {
                 if (remainingBytes >= source.Length) {
 
-                    // If our buffer has enough space to accomodate the data we copy into it.
+                    // If our buffer has enough space to accommodate the data we copy into it.
                     source.CopyTo(m_buffer.AsSpan(m_writePosition));
                     m_writePosition += source.Length;
 
@@ -633,7 +633,7 @@ internal sealed class BufferedConsoleStreamStrategy : ConsoleStreamStrategy
         }
 
         // If we got to this point the write position needs to be zero.
-        // It either was zero before, or was flushed because we didn't had enough space to accomodate the buffer.
+        // It either was zero before, or was flushed because we didn't had enough space to accommodate the buffer.
         if (source.Length >= m_bufferSize) {
             
             // If the source is bigger than our buffer we write straight to the underlying stream.
@@ -1038,7 +1038,7 @@ internal sealed class WindowsConsoleStreamStrategy : ConsoleStreamStrategy
     /// </summary>
     /// <param name="buffer">The buffer to read into.</param>
     /// <param name="bytesRead">The number of bytes read from the stream.</param>
-    /// <returns>Zero if succeded or the native error code.</returns>
+    /// <returns>Zero if succeeded or the native error code.</returns>
     /// <seealso cref="ErrorCodes"/>
     private int ReadFile(Span<byte> buffer, out int bytesRead)
         => NativeIO.ReadFile(ConsoleHandle, buffer, out bytesRead);
@@ -1047,7 +1047,7 @@ internal sealed class WindowsConsoleStreamStrategy : ConsoleStreamStrategy
     /// Writes file to the stream using 'WriteFile.
     /// </summary>
     /// <param name="buffer">The buffer to write from.</param>
-    /// <returns>Zero if succeded or the native error code.</returns>
+    /// <returns>Zero if succeeded or the native error code.</returns>
     /// <seealso cref="ErrorCodes"/>
     private int WriteFile(ReadOnlySpan<byte> buffer)
         => NativeIO.WriteFile(ConsoleHandle, buffer);
@@ -1057,7 +1057,7 @@ internal sealed class WindowsConsoleStreamStrategy : ConsoleStreamStrategy
     /// </summary>
     /// <param name="buffer">The buffer to read into.</param>
     /// <param name="bytesRead">The number of bytes read from the stream.</param>
-    /// <returns>Zero if succeded or the native error code.</returns>
+    /// <returns>Zero if succeeded or the native error code.</returns>
     /// <seealso cref="ErrorCodes"/>
     private unsafe int ReadConsole(Span<byte> buffer, out int bytesRead)
     {
@@ -1076,7 +1076,7 @@ internal sealed class WindowsConsoleStreamStrategy : ConsoleStreamStrategy
     /// Writes file to the stream using 'WriteConsoleW.
     /// </summary>
     /// <param name="buffer">The buffer to write from.</param>
-    /// <returns>Zero if succeded or the native error code.</returns>
+    /// <returns>Zero if succeeded or the native error code.</returns>
     /// <seealso cref="ErrorCodes"/>
     private unsafe int WriteConsole(ReadOnlySpan<byte> buffer)
     {
@@ -1094,7 +1094,7 @@ internal sealed class WindowsConsoleStreamStrategy : ConsoleStreamStrategy
     /// </summary>
     /// <param name="buffer">The buffer to read into.</param>
     /// <param name="bytesRead">The number of bytes read from the stream.</param>
-    /// <returns>Zero if succeded or the native error code.</returns>
+    /// <returns>Zero if succeeded or the native error code.</returns>
     /// <seealso cref="ErrorCodes"/>
     private unsafe int ReadDriver(Span<byte> buffer, out int bytesRead)
     {
@@ -1116,7 +1116,7 @@ internal sealed class WindowsConsoleStreamStrategy : ConsoleStreamStrategy
     /// Writes file to the stream using 'NtDeviceIoControlFile.
     /// </summary>
     /// <param name="buffer">The buffer to write from.</param>
-    /// <returns>Zero if succeded or the native error code.</returns>
+    /// <returns>Zero if succeeded or the native error code.</returns>
     /// <seealso cref="ErrorCodes"/>
     private unsafe int WriteDriver(ReadOnlySpan<byte> buffer)
     {

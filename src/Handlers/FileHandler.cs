@@ -89,7 +89,7 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
             FileBenchmarkData benchmarkData = new();
 
             // Handling synchronously.
-            if (Options.Synchronous && !Options.RunMultipleItensAsync) {
+            if (Options.Synchronous && !Options.RunMultipleItemsAsync) {
                 foreach (FileMinimalInformation file in files)
                     benchmarkData.SingleTimeList.Add(HandleFile(file.FullName, progressHandler, cancellationToken));
 
@@ -108,7 +108,7 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
                 // It also messes with the benchmark for individual items, since there's no simple way
                 // to control when the tasks are going to run, and where they are going to block.
                 // But this application is all about options, so you can choose to run it in parallel.
-                if (Options.RunMultipleItensAsync) {
+                if (Options.RunMultipleItemsAsync) {
 
                     // Using the 'Task.Run()' method takes a long time to start the tasks because the scheduler
                     // will wait for sometime before creating new threads(based on some heuristics).
@@ -159,7 +159,7 @@ internal sealed class FileHandler(CommandLineOptions options, Printer printer) :
         }
 
         if (files.Count > 1) {
-            if (Options.RunMultipleItensAsync) {
+            if (Options.RunMultipleItemsAsync) {
                 Task.WaitAll([.. files.Select(f => Task.Factory.StartNew(
                     () => HandleFile(f.FullName, progressHandler, cancellationToken),
                     cancellationToken,

@@ -25,6 +25,7 @@
     <Title>ManagedStrings</Title>
     <Version>1.0.0</Version>
     <Authors>Francisco Nabas</Authors>
+    <ApplicationIcon>Resources\ManagedStrings.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -34,6 +35,10 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Resources\ManagedStrings.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <Folder Include="src\Engine\Console\" />

@@ -6,11 +6,11 @@ using System;
 using System.IO;
 using System.Text;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 using ManagedStrings.Engine;
 using ManagedStrings.Serialization;
 using ManagedStrings.Engine.Console;
-using System.Runtime.CompilerServices;
 
 namespace ManagedStrings.Handlers;
 
@@ -333,7 +333,7 @@ internal sealed class Printer : IDisposable
 
                 break;
 
-            // 'Xml' and 'Json' are handler with their respective serializer.
+            // 'Xml' and 'Json' are handled with their respective serializer.
             case OutputFileType.Xml:
                 ResultCollectionXmlSerializer.Serialize(m_resultCollection, m_writer);
                 break;
@@ -392,13 +392,13 @@ internal sealed class Printer : IDisposable
         }
 
         // Here's where the magic happens.
-        // The two costlier operations are decoding and formatting/printint to the console.
+        // The two costlier operations are decoding and formatting/printing to the console.
         string res = string.Format(m_resultTemplate, m_buffer);
         WindowsConsole.WriteLine(res);
     }
 
     /// <summary>
-    /// Instantiate the output stream and writter according to the options.
+    /// Instantiate the output stream and writer according to the options.
     /// </summary>
     /// <exception cref="ArgumentException">Output file can't be null</exception>
     [MemberNotNull(nameof(m_writer))]

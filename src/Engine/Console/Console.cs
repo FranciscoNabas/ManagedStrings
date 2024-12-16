@@ -33,7 +33,7 @@ public static class WindowsConsole
     // Read buffer size. For more info see the comments on 'System.Console'.
     private const int ReadBufferSize = 4096;
 
-    // The minimum write buffer length. Initialy we also used a 'StreamWriter'
+    // The minimum write buffer length. Initially we also used a 'StreamWriter'
     // between our console and stream. The minimum buffer size for it is 128 bytes.
     private const int MinWriteBufferSize = 128;
 
@@ -362,7 +362,7 @@ public static class WindowsConsole
     /// Writes the text representation of the specified value to the output stream asynchronously.
     /// </summary>
     /// <param name="value">The value to write.</param>
-    /// <returns>A <see cref="Task"/> representing the asyncronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public static Task WriteAsync(string? value) => Out.WriteAsync(value);
 
     /// <summary>
@@ -379,14 +379,14 @@ public static class WindowsConsole
     /// <summary>
     /// Writes the current line terminator to the output stream asynchronously.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asyncronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public static Task WriteLineAsync() => Out.WriteLineAsync();
 
     /// <summary>
     /// Writes the specified string value, followed by the current line terminator, to the output stream asynchronously.
     /// </summary>
     /// <param name="value">The value to write.</param>
-    /// <returns>A <see cref="Task"/> representing the asyncronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public static Task WriteLineAsync(string? value) => Out.WriteLineAsync(value);
 
     /// <summary>
@@ -414,7 +414,7 @@ public static class WindowsConsole
     /// </summary>
     /// <param name="enable">True to enable using the driver.</param>
     /// <remarks>
-    /// It's important to set the underlying stream to use Unicode appropriatelly.
+    /// It's important to set the underlying stream to use Unicode appropriately.
     /// Calling the 'ConDrv' API requires us to tell if we're using Unicode or not,
     /// in contrast to 'WriteConsoleA' / 'WriteConsoleW'.
     /// </remarks>
@@ -616,7 +616,7 @@ public static class WindowsConsole
     /// </summary>
     /// <param name="handleType">The handle type. 'STD_INPUT_HANDLE', 'STD_OUTPUT_HANDLE', or 'STD_ERROR_HANDLE'.</param>
     /// <param name="access">The access to the stream. Read for input and write for output.</param>
-    /// <param name="ioType">The console IO type. Detemines which API will be used to interface with the console.</param>
+    /// <param name="ioType">The console IO type. Determines which API will be used to interface with the console.</param>
     /// <param name="isUnicode">True if we're using Unicode.</param>
     /// <returns>A <see cref="ConsoleStreamStrategy"/> representing the console handle.</returns>
     /// <exception cref="ArgumentException">The input handle type is invalid.</exception>
